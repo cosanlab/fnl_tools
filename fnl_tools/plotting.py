@@ -5,6 +5,7 @@ import numpy as np
 import pandas as pd
 import matplotlib
 import matplotlib.patches as patches
+from fnl_tools.utils import rec_to_time
 
 def plot_recurrence(data, labels=None, file_name=None, color = ['w','orange','r'], title=None, tr=2.):
     '''

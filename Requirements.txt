@@ -1,0 +1,10 @@
+scikit-learn>=0.18.1
+pandas>=0.16
+numpy>=1.9
+seaborn>=0.7.0
+matplotlib
+scipy
+six
+hmmlearn
+nltools
+pywt

@@ -13,13 +13,13 @@ def calc_fft(signal, Fs):
     Returns:
         frequency: frequency in Hz
         power spectrum: power spectrum
+
     '''
     fourier = np.abs(np.fft.fft(signal))**2
     n = signal.size
     timestep = 1/Fs
     freq = np.fft.fftfreq(n, d=timestep)
     return (freq[freq>0],fourier[freq>0])
-
 
 def sort_subject_clusters(data, subject_col=None, cluster_col=None,
                         n_iterations=2):
@@ -92,3 +92,40 @@ def sort_subject_clusters(data, subject_col=None, cluster_col=None,
                                                 subject_col=subject_col,
                                                 cluster_col=cluster_col)
     return sorted_data
+
+def validity_index(data, subject_col='Subject', cluster_col='Cluster'):
+    '''Calculate cluster validity index.  average normalized between-within
+    cluster distance across clusters
+        Args:
+            data: (pd.DataFrame) clusters x features target data to sort
+                    must include subject
+            subject_col: (str) Variable name of target that indicates Grouping
+                    variable (e.g., 'Subject')
+            cluster_col: (str) Variable name of target that indicates Cluster
+                    variable (e.g., 'Cluster)
+        Returns:
+            vi: (float) validity index
+    '''
+    data = data.copy()
+    sub_list = data[subject_col].unique()
+    clust_list = data[cluster_col].unique()
+
+    c = clust_list[0]
+    vi_all = []
+    for c in clust_list:
+        c_dat = data.loc[data[cluster_col] == c,:].drop([subject_col,
+                                                        cluster_col],axis=1)
+        other_dat = data.loc[data[cluster_col] != c,:].drop([subject_col,
+                                                        cluster_col],axis=1)
+        within_dist = pairwise_distances(c_dat,metric='correlation')
+        within_dist_mn = np.mean(
+                        within_dist[np.triu_indices(within_dist.shape[0],k=1)])
+        between_dist = pairwise_distances(pd.concat([c_dat,other_dat],axis=0))
+        between_dist = between_dist[c_dat.shape[0]:,c_dat.shape[0]:]
+        between_dist_mn = np.mean(
+                    between_dist[np.triu_indices(between_dist.shape[0],k=1)])
+        c_vi = ((between_dist_mn-within_dist_mn)/
+                    (np.maximum(between_dist_mn,within_dist_mn)))
+        vi_all.append(c_vi)
+    vi = np.mean(vi_all)
+    return vi

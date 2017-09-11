@@ -2,6 +2,7 @@ from __future__ import division
 import numpy as np
 import pandas as pd
 from nltools.stats import pearson
+from sklearn.metrics import pairwise_distances
 
 def calc_fft(signal, Fs):
     ''' Calculate FFT of signal
@@ -93,7 +94,8 @@ def sort_subject_clusters(data, subject_col=None, cluster_col=None,
                                                 cluster_col=cluster_col)
     return sorted_data
 
-def validity_index(data, subject_col='Subject', cluster_col='Cluster'):
+def validity_index(data, subject_col='Subject', cluster_col='Cluster',
+                    metric='correlation'):
     '''Calculate cluster validity index.  average normalized between-within
     cluster distance across clusters
         Args:
@@ -103,6 +105,7 @@ def validity_index(data, subject_col='Subject', cluster_col='Cluster'):
                     variable (e.g., 'Subject')
             cluster_col: (str) Variable name of target that indicates Cluster
                     variable (e.g., 'Cluster)
+            metric: (str) type of distance metric to use
         Returns:
             vi: (float) validity index
     '''
@@ -117,7 +120,7 @@ def validity_index(data, subject_col='Subject', cluster_col='Cluster'):
                                                         cluster_col],axis=1)
         other_dat = data.loc[data[cluster_col] != c,:].drop([subject_col,
                                                         cluster_col],axis=1)
-        within_dist = pairwise_distances(c_dat,metric='correlation')
+        within_dist = pairwise_distances(c_dat,metric=metric)
         within_dist_mn = np.mean(
                         within_dist[np.triu_indices(within_dist.shape[0],k=1)])
         between_dist = pairwise_distances(pd.concat([c_dat,other_dat],axis=0))

@@ -7,13 +7,15 @@ import matplotlib
 import matplotlib.patches as patches
 from fnl_tools.utils import rec_to_time
 
-def plot_recurrence(data, labels=None, file_name=None, color = ['w','orange','r'], title=None, tr=2.):
+def plot_recurrence(data, labels=None, file_name=None,
+                    color = ['w','orange','r'],
+                    title=None, tr=2., cmap=None, vmin=-1, vmax=1):
     '''
     This function plots a recurrence plot.
     Can optionally color the states with a vector of unique labels.
     '''
     plt.figure(figsize=(10,10))
-    plt.imshow(data)
+    plt.imshow(data, cmap=cmap, vmin=vmin, vmax=vmax)
     ax = plt.gca()
 
     if labels is not None:
@@ -129,44 +131,48 @@ def plot_avg_state_timeseries(data, groupby=None, line_width=3, overlay=True, co
         axes: axes handle
 
     '''
-    data = data.copy()
-    data.sort_values(groupby,inplace=True)
-    group_idx = data[groupby]
-    groups = data[groupby].unique()
-    data.drop(groupby, axis=1, inplace=True)
-    if ax is not None:
-        if not overlay:
-            raise NotImplemented('Setting non overlay plots to a specific axis is not implemented yet.')
-        for i,x in enumerate(groups):
-            data.loc[group_idx==x,:].mean().plot(kind='line',ax=ax, color=color[i], linewidth=line_width)
-            ax.set_xticks(range(data.columns.min(),data.columns.max(),50))
-            ax.set_xticklabels(rec_to_time(range(data.columns.min(),data.columns.max(),50),TR=tr),rotation=60,fontsize=14)
-            ax.legend(groups+1,title='State',fontsize=14,loc='upper left')
-            ax.set_ylabel('State Probability',fontsize=16)
-    else:
-        if overlay:
-            fig,axes = plt.subplots(figsize=(20,5))
+    if groupy is not None:
+        data = data.copy()
+        data.sort_values(groupby,inplace=True)
+        group_idx = data[groupby]
+        groups = data[groupby].unique()
+        data.drop(groupby, axis=1, inplace=True)
+        if ax is not None:
+            if not overlay:
+                raise NotImplemented('Setting non overlay plots to a specific axis is not implemented yet.')
+            for i,x in enumerate(groups):
+                data.loc[group_idx==x,:].mean().plot(kind='line',ax=ax, color=color[i], linewidth=line_width)
+                ax.set_xticks(range(data.columns.min(),data.columns.max(),50))
+                ax.set_xticklabels(rec_to_time(range(data.columns.min(),data.columns.max(),50),TR=tr),rotation=60,fontsize=14)
+                ax.legend(groups+1,title='State',fontsize=14,loc='upper left')
+                ax.set_ylabel('State Probability',fontsize=16)
         else:
-            fig,axes = plt.subplots(nrows=len(groups),figsize=(20,len(groups)*2),sharex=True)
-
-        for i,x in enumerate(groups):
             if overlay:
-                data.loc[group_idx==x,:].mean().plot(kind='line',ax=axes, color=color[i], linewidth=line_width)
-                axes.set_xticks(range(data.columns.min(),data.columns.max(),50))
-                axes.set_xticklabels(rec_to_time(range(data.columns.min(),data.columns.max(),50),TR=tr),rotation=60,fontsize=14)
-                plt.legend(groups+1,title='State',fontsize=14,loc='upper left')
-                plt.ylabel('State Probability',fontsize=16)
+                fig,axes = plt.subplots(figsize=(20,5))
             else:
-                data.loc[group_idx==x,:].mean().plot(kind='line',ax=axes[i], color=color[i], linewidth=line_width)
-                axes[i].set_xticks(range(data.columns.min(),data.columns.max(),50))
-                axes[i].set_xticklabels(rec_to_time(range(data.columns.min(),data.columns.max(),50),TR=tr),rotation=60,fontsize=14)
-                axes[i].set_ylim(ylim)
-                axes[i].set_ylabel('State %s' % (i + 1),fontsize=14)
+                fig,axes = plt.subplots(nrows=len(groups),figsize=(20,len(groups)*2),sharex=True)
 
-        plt.xlabel('Time',fontsize=16)
-        plt.tight_layout()
+            for i,x in enumerate(groups):
+                if overlay:
+                    data.loc[group_idx==x,:].mean().plot(kind='line',ax=axes, color=color[i], linewidth=line_width)
+                    axes.set_xticks(range(data.columns.min(),data.columns.max(),50))
+                    axes.set_xticklabels(rec_to_time(range(data.columns.min(),data.columns.max(),50),TR=tr),rotation=60,fontsize=14)
+                    plt.legend(groups+1,title='State',fontsize=14,loc='upper left')
+                    plt.ylabel('State Probability',fontsize=16)
+                else:
+                    data.loc[group_idx==x,:].mean().plot(kind='line',ax=axes[i], color=color[i], linewidth=line_width)
+                    axes[i].set_xticks(range(data.columns.min(),data.columns.max(),50))
+                    axes[i].set_xticklabels(rec_to_time(range(data.columns.min(),data.columns.max(),50),TR=tr),rotation=60,fontsize=14)
+                    axes[i].set_ylim(ylim)
+                    axes[i].set_ylabel('State %s' % (i + 1),fontsize=14)
 
-    if ax is None:
-        if file_name is not None:
-            plt.savefig(file_name)
-        return (fig, axes)
+            plt.xlabel('Time',fontsize=16)
+            plt.tight_layout()
+
+        if ax is None:
+            if file_name is not None:
+                plt.savefig(file_name)
+            return (fig, axes)
+
+    else:
+        raise NotImplementedError('This is not implemented yet.')

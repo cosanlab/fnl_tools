@@ -23,7 +23,7 @@ def plot_recurrence(data, labels=None, file_name=None,
         if len(color) != len(states):
             raise ValueError('Make sure list of colors matches length of unique states')
         for i,s in enumerate(states):
-            for start,duration in get_rect_coord(labels==s).iteritems():
+            for start,duration in get_rect_coord(labels==s).items():
                 rect = patches.Rectangle((start,start), duration, duration, linewidth=2, edgecolor=color[i], facecolor='none')
                 ax.add_patch(rect)
 

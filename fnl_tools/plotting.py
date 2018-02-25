@@ -5,7 +5,7 @@ import numpy as np
 import pandas as pd
 import matplotlib
 import matplotlib.patches as patches
-from fnl_tools.utils import rec_to_time
+from fnl_tools.utils import rec_to_time, get_rect_coord
 
 def plot_recurrence(data, labels=None, file_name=None,
                     color = ['w','orange','r'],
@@ -131,7 +131,7 @@ def plot_avg_state_timeseries(data, groupby=None, line_width=3, overlay=True, co
         axes: axes handle
 
     '''
-    if groupy is not None:
+    if groupby is not None:
         data = data.copy()
         data.sort_values(groupby,inplace=True)
         group_idx = data[groupby]

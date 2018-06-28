@@ -43,3 +43,14 @@ def convert_episode_to_adjacency(data, episode, dimension='likePair', char_list=
                     s_square_dat.loc[i,j] = s_dat.loc[(s_dat['char1']==i) & (s_dat['char2']==j),'rating'].values
         all_dat.append(s_square_dat)
     return Adjacency(data=all_dat,matrix_type='directed')
+
+def create_scene_annotation(annotations, n_tr = 1364, tr=2.0):
+    dm = pd.DataFrame({'Scene':np.zeros((n_tr))})
+    for i,s in annotations.iterrows():
+        if i < annotations.shape[0]-1:
+            start = np.floor(s['Onset']/tr)
+            stop = np.floor(annotations.loc[i+1,'Onset']/tr)
+        elif i == annotations.shape[0]-1:
+            stop = n_tr
+        dm.loc[start:stop,'Scene'] = s['Scene']
+    return dm

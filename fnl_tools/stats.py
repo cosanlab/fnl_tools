@@ -132,3 +132,57 @@ def validity_index(data, subject_col='Subject', cluster_col='Cluster',
         vi_all.append(c_vi)
     vi = np.mean(vi_all)
     return vi
+
+
+def align_clusters_groups(group1, group2):
+    '''Reorder group2 columns to match group1 (expects time x cluster mean)
+
+        Args:
+            group1: data x clusters dataframe for group1
+            group2: data x clusters dataframe for group2 (can have less features than group1)
+
+        Returns:
+            cluster_match: Average diagonal correlation
+            cluster_unmatch: Average off diagonal correlation
+
+    '''
+
+    if group1.shape[0] != group2.shape[0]:
+        # Can relax this eventually for columns
+        raise ValueError('Make sure groups have same number of observations.')
+
+    group1_selected = group1.copy()
+    group2_new = {}
+    for i in group2:
+        r_vec = pd.Series(pearson(group2.iloc[:,i],group1_selected.T))
+        idx = r_vec.idxmax()
+        group2_new[idx] = group2.iloc[:,i].values.flatten()
+        group1_selected.iloc[:,idx] = np.nan #block column from being rematched
+    group2_new = pd.DataFrame(group2_new)
+    group2_new = group2_new.reindex_axis(sorted(group2_new.columns), axis=1)
+    group2_new.index = group2.index
+    return group2_new
+
+def group_cluster_consensus(group1, group2, align=False):
+    '''Calculate cluster average reliability of clusters
+
+        Args:
+            group1: data x clusters dataframe for group1
+            group2: data x clusters dataframe for group1
+            align: (bool) align group2 to group1 if this hasn't already been done.
+
+        Returns:
+            cluster_match: Average diagonal correlation
+            cluster_unmatch: Average off diagonal correlation
+
+    '''
+
+    if group1.shape != group2.shape:
+        raise ValueError('Make sure groups are same size.')
+
+    if align:
+        group2 = align_clusters_groups(group1,group2)
+
+    r = group1.T.append(group2.T).T.corr()
+    n_clust = group1.shape[1]
+    return (np.mean(np.diag(r,k=n_clust)),np.mean([np.mean(np.diag(r,k=x)) for x in range(1,n_clust*2) if x != n_clust]))

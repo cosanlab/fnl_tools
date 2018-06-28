@@ -7,6 +7,7 @@ def get_rect_coord(labels):
     This method takes a vector of labels as input and outputs
     a dictionary of the start and duration of a state.
     '''
+    labels = np.array(labels)
     count_on = 0
     start = []
     duration = []

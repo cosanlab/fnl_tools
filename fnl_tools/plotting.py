@@ -92,6 +92,7 @@ def plot_wavelet(data, n_bins=50, n_decimal=4, title=None, file_name=None):
         n_decimal: number of decimal places to round
         title: Title for plot
         file_name: name of filename to save plot
+        legend: (bool) include legend
 
     Returns:
         fig: figure handle
@@ -115,7 +116,7 @@ def plot_wavelet(data, n_bins=50, n_decimal=4, title=None, file_name=None):
     if file_name is not None:
         plt.savefig(file_name)
 
-def plot_avg_state_timeseries(data, groupby=None, line_width=3, overlay=True, color='skyblue', file_name=None, tr=2., ylim=[0,.4],ax=None):
+def plot_avg_state_timeseries(data, groupby=None, line_width=3, overlay=True, color='skyblue', file_name=None, tr=2., ylim=[0,.4],ax=None, legend=True):
     '''
     Plot average state timeseries
 
@@ -144,7 +145,8 @@ def plot_avg_state_timeseries(data, groupby=None, line_width=3, overlay=True, co
                 data.loc[group_idx==x,:].mean().plot(kind='line',ax=ax, color=color[i], linewidth=line_width)
                 ax.set_xticks(range(data.columns.min(),data.columns.max(),50))
                 ax.set_xticklabels(rec_to_time(range(data.columns.min(),data.columns.max(),50),TR=tr),rotation=60,fontsize=14)
-                ax.legend(groups+1,title='State',fontsize=14,loc='upper left')
+                if legend:
+                    ax.legend(groups+1,title='State',fontsize=14,loc='upper left')
                 ax.set_ylabel('State Probability',fontsize=16)
         else:
             if overlay:
@@ -157,7 +159,8 @@ def plot_avg_state_timeseries(data, groupby=None, line_width=3, overlay=True, co
                     data.loc[group_idx==x,:].mean().plot(kind='line',ax=axes, color=color[i], linewidth=line_width)
                     axes.set_xticks(range(data.columns.min(),data.columns.max(),50))
                     axes.set_xticklabels(rec_to_time(range(data.columns.min(),data.columns.max(),50),TR=tr),rotation=60,fontsize=14)
-                    plt.legend(groups+1,title='State',fontsize=14,loc='upper left')
+                    if legend:
+                        plt.legend(groups+1,title='State',fontsize=14,loc='upper left')
                     plt.ylabel('State Probability',fontsize=16)
                 else:
                     data.loc[group_idx==x,:].mean().plot(kind='line',ax=axes[i], color=color[i], linewidth=line_width)

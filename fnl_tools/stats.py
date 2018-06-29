@@ -1,7 +1,13 @@
 from __future__ import division
 import numpy as np
+import os
 import pandas as pd
 from nltools.stats import pearson
+from sklearn.metrics import pairwise_distances
+from scipy.linalg import eigh
+from copy import deepcopy
+from scipy.optimize import curve_fit
+from nltools.data import Adjacency
 from sklearn.metrics import pairwise_distances
 
 def calc_fft(signal, Fs):
@@ -185,4 +191,113 @@ def group_cluster_consensus(group1, group2, align=False):
 
     r = group1.T.append(group2.T).T.corr()
     n_clust = group1.shape[1]
-    return (np.mean(np.diag(r,k=n_clust)),np.mean([np.mean(np.diag(r,k=x)) for x in range(1,n_clust*2) if x != n_clust]))
+    return (np.mean(np.diag(r,k=n_clust)),np.mean([np.mean(np.diag(<r></r>,k=x)) for x in range(1,n_clust*2) if x != n_clust]))
+
+def delay_coord_embedding(data, delay=4, dimensions=2):
+    out = deepcopy(data)
+    for d in range(dimensions-1):
+        out = np.vstack([out,np.concatenate([data[delay:],[np.nan]*delay])])
+    out = out.T
+    return out[:-delay*(dimensions-1)]
+
+def exponential_func(x, a, b, c):
+    return a * np.exp(-b * x) + c
+
+def exponential_func_2param(x, b, c):
+    return b*np.exp(-b * x) + c
+
+def exponential_func_1param(x, b):
+    return b*np.exp(-b * x)
+
+def calc_spatial_temporal_correlation(roi, data_dir='/Volumes/Manifesto/Data/fnl/preprocessed'):
+    # Load Time series for each subject
+    file_list = glob.glob(os.path.join(data_dir,'roi_denoised','*','*CSF*ROI%s.csv' % (roi)))
+    sub_id = [x.split('/')[-2].split('-')[1] for x in file_list]
+    data = []
+    for f in file_list:
+        data.append(pd.read_csv(f))
+
+    # Create adjacency matrix
+    d = Adjacency()
+    for s in data:
+        d = d.append(Adjacency(1-pairwise_distances(s, metric='correlation'), metric='similarity'))
+
+    # Calculate spatial autocorrelation
+    autocorr = []
+    for s in d:
+        sub_autocorr = []
+        for x in range(1,50):
+            sub_autocorr.append(np.diag(s.squareform(),x).mean())
+        autocorr.append(sub_autocorr)
+    autocorr = pd.DataFrame(autocorr).T
+    autocorr['Lag'] = autocorr.index
+    autocorr_long = autocorr.melt(id_vars='Lag',var_name='Subject',value_name='Correlation')
+    autocorr_long.to_csv(os.path.join(base_dir, 'Analyses','Spatiotemporal_Autocorrelation','TV_Study_Autocorrelation_ROI%s.csv' % roi))
+
+    # Fit curve
+    params={}
+    for sub in autocorr_long['Subject'].unique():
+        r = autocorr_long.loc[autocorr_long['Subject']==sub,:]
+        popt, pcov = curve_fit(exponential_func, r['Lag'], r['Correlation'])
+        params[sub] = np.concatenate([popt,np.sqrt(np.diag(pcov))])
+    params = pd.DataFrame(params,index=['a','b','c','a_sd','b_sd','c_sd']).T
+    params['Subject'] = params.index
+    params['ROI'] = roi
+    return params
+
+def mean_weighted_by_inverse_variance(effect_size, std):
+    return np.sum(effect_size*(std**2))/(np.sum(std**2))
+
+def autocorrelation(data, delay=30):
+    out = deepcopy(data)
+    for d in range(1,delay+1):
+        out = np.vstack([out,np.concatenate([data[d:],[np.nan]*d])])
+    out = out.T
+    out = out[:-delay]
+    r = np.corrcoef(out.T)
+    autocorr = []
+    for d in range(1,delay+1):
+        autocorr.append(np.mean(np.diag(r,k=d)))
+    return np.array(autocorr)
+
+
+class PCA(object):
+    '''
+    Compute PCA on Correlation Matrix
+
+    Args:
+        data: n x n correlation matrix
+        n_components: number of components to return
+
+    '''
+    def __init__(self, n_components=None):
+        self.n_components = n_components
+
+    def fit(self, X):
+        '''Fit PCA Model'''
+        # calculate eigenvectors & eigenvalues of the covariance matrix
+        # use 'eigh' rather than 'eig' since R is symmetric,
+        # the performance gain is substantial
+        X = np.array(X, dtype=np.float64)
+        evals, evecs = eigh(X)
+
+        # sort eigenvalue in decreasing order
+        idx = np.argsort(evals)[::-1]
+        self.evals = evals
+        self.idx = idx
+        self.explained_variance_ = evals[idx]
+        self.explained_variance_ratio_ = self.explained_variance_/np.sum(evals)
+        self.components_ = evecs[:,idx]
+        if self.n_components is not None:
+            self.explained_variance_ = self.explained_variance_[:self.n_components]
+            self.explained_variance_ratio_ = self.explained_variance_ratio_[:self.n_components]
+            self.components_ = self.components_[:, :self.n_components]
+
+    def transform(self, X):
+        '''Apply PCA model to X'''
+        return np.dot(self.components_.T, X.T).T
+
+    def fit_transform(self, X):
+        '''Fit PCA Model and apply it to X'''
+        self.fit(X)
+        return self.transform(X)

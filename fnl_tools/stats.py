@@ -260,7 +260,19 @@ def autocorrelation(data, delay=30):
         autocorr.append(np.mean(np.diag(r,k=d)))
     return np.array(autocorr)
 
+def bic(ll,k,n):
+    ''' Calculate BIC
 
+    Args:
+        ll: log-likelihood
+        k: number of states
+        n: number of observations
+    Returns:
+        bic: bayesian information criterion
+
+    '''
+    return (np.log(n)*k - 2*ll)
+    
 class PCA(object):
     '''
     Compute PCA on Correlation Matrix

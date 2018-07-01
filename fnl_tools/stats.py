@@ -190,7 +190,7 @@ def group_cluster_consensus(group1, group2, align=False):
 
     r = group1.T.append(group2.T).T.corr()
     n_clust = group1.shape[1]
-    return (np.mean(np.diag(r,k=n_clust)),np.mean([np.mean(np.diag(<r></r>,k=x)) for x in range(1,n_clust*2) if x != n_clust]))
+    return (np.mean(np.diag(r,k=n_clust)),np.mean([np.mean(np.diag(r,k=x)) for x in range(1,n_clust*2) if x != n_clust]))
 
 def delay_coord_embedding(data, delay=4, dimensions=2):
     out = deepcopy(data)

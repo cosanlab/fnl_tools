@@ -1,14 +1,13 @@
 from __future__ import division
 import numpy as np
 import os
+from copy import deepcopy
 import pandas as pd
 from nltools.stats import pearson
 from sklearn.metrics import pairwise_distances
 from scipy.linalg import eigh
-from copy import deepcopy
 from scipy.optimize import curve_fit
 from nltools.data import Adjacency
-from sklearn.metrics import pairwise_distances
 
 def calc_fft(signal, Fs):
     ''' Calculate FFT of signal
@@ -272,7 +271,7 @@ def bic(ll,k,n):
 
     '''
     return (np.log(n)*k - 2*ll)
-    
+
 class PCA(object):
     '''
     Compute PCA on Correlation Matrix

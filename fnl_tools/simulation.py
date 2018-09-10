@@ -31,19 +31,6 @@ def covariance_matrix_ar1(n_variables, sigma, mu_r, sigma_r, alpha, cov):
     cov_t[np.diag_indices(n_variables)] = sigma
     return cov_t
 
-def autocorrelation(data, delay=30):
-    '''Calculate Autocorrelation of a vector'''
-    out = deepcopy(data)
-    for d in range(1,delay+1):
-        out = np.vstack([out,np.concatenate([data[d:],[np.nan]*d])])
-    out = out.T
-    out = out[:-delay]
-    r = np.corrcoef(out.T)
-    autocorr = []
-    for d in range(1,delay+1):
-        autocorr.append(np.mean(np.diag(r,k=d)))
-    return np.array(autocorr)
-
 def simulate_time_series(n_tr=1000, n_variables=2, mu_r=0.2, sigma_r=0.1,
                          alpha_time=0.8, alpha_cov=0.5, mu=0, sigma = 1):
     ''' Simulate a time by feature timeseries with dynamic fluctuating connectivity

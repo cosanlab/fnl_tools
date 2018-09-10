@@ -182,3 +182,68 @@ def plot_avg_state_timeseries(data, groupby=None, line_width=3, overlay=True, co
 
     else:
         raise NotImplementedError('This is not implemented yet.')
+
+def create_opacity(color, intensity, opacity=True):
+    if opacity:
+        out = []
+        for i in intensity:
+            out.append(color + (i,))
+    else:
+        out = [color + (1,)] * len(intensity)
+    return out
+
+def create_simulation_pdf(data):
+    p = {}
+    for i in np.arange(0,1.01,.01):
+        p[np.round(i, decimals=2)] = np.mean(data['Prediction']>i)
+    return p
+
+def plot_concordance(data, sim_data=None, fontsize=18, p_threshold=0.05, tr=2.0, opacity=True):
+
+    samples = [i for i in data.columns if isinstance(i, (float,int))]
+    colors = sns.color_palette("hls", len(data['Cluster'].unique()))
+    fig, axs = plt.subplots(1, sharex=True, sharey=True, figsize=(15,3))
+
+    if sim_data is not None:
+        p = create_simulation_pdf(sim_data)
+        pp = pd.Series(p)
+        ci = pp.keys()[pp.values < p_threshold][0]
+
+        for cluster in sorted(data['Cluster'].unique()):
+            y = data.loc[data.loc[:,"Cluster"]==cluster,:].drop('Cluster', axis=1).mean()
+            x = y.index
+            y = y.values
+
+            z = np.array([(p[np.round(i,decimals=2)]) for i in list(y)])
+            z = 1-(z-pp.min())/(pp.max()-pp.min())
+            color_list = create_opacity(colors[cluster], z, opacity=opacity)
+
+            points = np.array([x, y]).T.reshape(-1, 1, 2)
+            segments = np.concatenate([points[:-1], points[1:]], axis=1)
+
+            lc = LineCollection(segments, colors=color_list, cmap=None)
+            lc.set_linewidth(2)
+            axs.add_collection(lc)
+
+        plt.axhline(ci, linestyle='--', alpha=.5, color='grey')
+    else:
+        for cluster in sorted(data['Cluster'].unique()):
+            y = data.loc[data.loc[:,"Cluster"]==cluster,:].drop('Cluster', axis=1).mean()
+            x = y.index
+            y = y.values
+            color_list = create_opacity(colors[cluster], y, opacity=opacity)
+
+            points = np.array([x, y]).T.reshape(-1, 1, 2)
+            segments = np.concatenate([points[:-1], points[1:]], axis=1)
+
+            lc = LineCollection(segments, colors=color_list, cmap=None)
+            lc.set_linewidth(2)
+            axs.add_collection(lc)
+
+    axs.set_xlim(x.min(), x.max())
+    axs.set_ylim([0, 1])
+    axs.set_xticks(range(min(samples),max(samples),50))
+    axs.set_xticklabels(rec_to_time(range(min(samples),max(samples),50),TR=tr),rotation=60,fontsize=fontsize)
+    axs.set_ylabel('Concordance', fontsize=fontsize)
+    plt.tight_layout()
+    return (fig, axs)

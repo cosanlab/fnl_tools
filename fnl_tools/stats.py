@@ -147,7 +147,8 @@ def align_clusters_groups(group1, group2):
             group2: data x clusters dataframe for group2 (can have less features than group1)
 
         Returns:
-            aligned group2: Aligned group2
+            aligned group2: Pandas DataFrame of Aligned group2
+            aligned keys: Dictionary of column remapping {orig_column: new_column}
     '''
 
     if group1.shape[0] != group2.shape[0]:
@@ -156,15 +157,16 @@ def align_clusters_groups(group1, group2):
 
     group1_selected = group1.copy()
     group2_new = {}
-    for i in group2:
+    for i in range(group2.shape[1]):
         r_vec = pd.Series(pearson(group2.iloc[:,i],group1_selected.T))
         idx = r_vec.idxmax()
         group2_new[idx] = group2.iloc[:,i].values.flatten()
         group1_selected.iloc[:,idx] = np.nan #block column from being rematched
     group2_new = pd.DataFrame(group2_new)
+    remapped_columns = {x:group2_new.columns[x] for x in range(group2_new.shape[1])}
     group2_new = group2_new.reindex_axis(sorted(group2_new.columns), axis=1)
     group2_new.index = group2.index
-    return group2_new
+    return (group2_new, remapped_columns)
 
 def group_cluster_consensus(group1, group2, align=False):
     '''Calculate cluster average reliability of clusters

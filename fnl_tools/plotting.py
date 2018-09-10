@@ -5,6 +5,7 @@ import numpy as np
 import pandas as pd
 import matplotlib
 import matplotlib.patches as patches
+from matplotlib.collections import LineCollection
 from fnl_tools.utils import rec_to_time, get_rect_coord
 
 def plot_recurrence(data, labels=None, file_name=None,

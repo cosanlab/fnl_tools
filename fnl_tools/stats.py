@@ -147,9 +147,7 @@ def align_clusters_groups(group1, group2):
             group2: data x clusters dataframe for group2 (can have less features than group1)
 
         Returns:
-            cluster_match: Average diagonal correlation
-            cluster_unmatch: Average off diagonal correlation
-
+            aligned group2: Aligned group2
     '''
 
     if group1.shape[0] != group2.shape[0]:

@@ -192,7 +192,7 @@ def create_opacity(color, intensity, opacity=True):
         out = [color + (1,)] * len(intensity)
     return out
 
-def create_simulation_pdf(data):
+def _create_simulation_pdf(data):
     p = {}
     for i in np.arange(0,1.01,.01):
         p[np.round(i, decimals=2)] = np.mean(data['Prediction']>i)
@@ -205,7 +205,7 @@ def plot_concordance(data, sim_data=None, fontsize=18, p_threshold=0.05, tr=2.0,
     fig, axs = plt.subplots(1, sharex=True, sharey=True, figsize=(15,3))
 
     if sim_data is not None:
-        p = create_simulation_pdf(sim_data)
+        p = _create_simulation_pdf(sim_data)
         pp = pd.Series(p)
         ci = pp.keys()[pp.values < p_threshold][0]
 

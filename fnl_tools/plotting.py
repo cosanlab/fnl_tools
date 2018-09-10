@@ -8,7 +8,7 @@ import matplotlib.patches as patches
 from fnl_tools.utils import rec_to_time, get_rect_coord
 
 def plot_recurrence(data, labels=None, file_name=None,
-                    color = ['w','orange','r'],
+                    color = None,
                     title=None, tr=2., cmap=None, vmin=-1, vmax=1):
     '''
     This function plots a recurrence plot.
@@ -20,8 +20,11 @@ def plot_recurrence(data, labels=None, file_name=None,
 
     if labels is not None:
         states = list(set(labels))
-        if len(color) != len(states):
-            raise ValueError('Make sure list of colors matches length of unique states')
+        if color is None:
+            color = sns.color_palette("hls", len(states))
+        else:
+            if len(color) != len(states):
+                raise ValueError('Make sure list of colors matches length of unique states')
         for i,s in enumerate(states):
             for start,duration in get_rect_coord(labels==s).items():
                 rect = patches.Rectangle((start,start), duration, duration, linewidth=2, edgecolor=color[i], facecolor='none')

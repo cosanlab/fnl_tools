@@ -227,8 +227,6 @@ def plot_concordance(data, sim_data=None, fontsize=18, p_threshold=0.05, tr=2.0,
             lc = LineCollection(segments, colors=color_list, cmap=None)
             lc.set_linewidth(2)
             axs.add_collection(lc)
-            if legend:
-                axs.legend(cluster+1,title='Cluster',fontsize=14,loc='upper left')
 
         plt.axhline(ci, linestyle='--', alpha=.5, color='grey')
     else:
@@ -244,8 +242,8 @@ def plot_concordance(data, sim_data=None, fontsize=18, p_threshold=0.05, tr=2.0,
             lc = LineCollection(segments, colors=color_list, cmap=None)
             lc.set_linewidth(2)
             axs.add_collection(lc)
-            if legend:
-                axs.legend(cluster+1,title='Cluster',fontsize=14,loc='upper left')
+    if legend:
+        axs.legend(sorted(data['Cluster'].unique()),fontsize=fontsize, loc='center left', bbox_to_anchor=(1, 0.5))
 
     axs.set_xlim(x.min(), x.max())
     axs.set_ylim([0, 1])
@@ -278,8 +276,8 @@ def plot_weighted_concordance(data, weighting_dict=None, fontsize=18, tr=2.0,
         y = y.values
         c = colors[cluster] + (weighting_dict[cluster],)
         axs.plot(x,y,color=c)
-        if legend:
-            axs.legend(cluster+1,title='Cluster',fontsize=14,loc='upper left')
+    if legend:
+        axs.legend(sorted(data['Cluster'].unique()),fontsize=fontsize, loc='center left', bbox_to_anchor=(1, 0.5))
     axs.set_xlim(x.min(), x.max())
     axs.set_ylim([0, 1])
     axs.set_xticks(range(min(samples),max(samples),50))

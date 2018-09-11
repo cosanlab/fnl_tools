@@ -184,7 +184,7 @@ def plot_avg_state_timeseries(data, groupby=None, line_width=3, overlay=True, co
     else:
         raise NotImplementedError('This is not implemented yet.')
 
-def create_opacity(color, intensity, opacity=True):
+def _create_opacity(color, intensity, opacity=True):
     if opacity:
         out = []
         for i in intensity:
@@ -217,7 +217,7 @@ def plot_concordance(data, sim_data=None, fontsize=18, p_threshold=0.05, tr=2.0,
 
             z = np.array([(p[np.round(i,decimals=2)]) for i in list(y)])
             z = 1-(z-pp.min())/(pp.max()-pp.min())
-            color_list = create_opacity(colors[cluster], z, opacity=opacity)
+            color_list = _create_opacity(colors[cluster], z, opacity=opacity)
 
             points = np.array([x, y]).T.reshape(-1, 1, 2)
             segments = np.concatenate([points[:-1], points[1:]], axis=1)

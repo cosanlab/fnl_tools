@@ -8,6 +8,7 @@ import matplotlib.patches as patches
 from matplotlib.collections import LineCollection
 from fnl_tools.utils import rec_to_time, get_rect_coord
 from sklearn.preprocessing import MinMaxScaler
+from copy import deepcopy
 
 def plot_recurrence(data, labels=None, file_name=None,
                     color = None,
@@ -256,6 +257,7 @@ def plot_concordance(data, sim_data=None, fontsize=18, p_threshold=0.05, tr=2.0,
 def plot_weighted_concordance(data, weighting_dict=None, fontsize=18, tr=2.0,
                                 normalize=True, legend=True):
 
+    weighting_dict = deepcopy(weighting_dict)
     if weighting_dict is None:
         weighting_dict = {x:1 for x in data['Cluster'].unique()}
 

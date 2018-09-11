@@ -7,6 +7,7 @@ import matplotlib
 import matplotlib.patches as patches
 from matplotlib.collections import LineCollection
 from fnl_tools.utils import rec_to_time, get_rect_coord
+from sklearn.preprocessing import MinMaxScaler
 
 def plot_recurrence(data, labels=None, file_name=None,
                     color = None,
@@ -241,6 +242,36 @@ def plot_concordance(data, sim_data=None, fontsize=18, p_threshold=0.05, tr=2.0,
             lc.set_linewidth(2)
             axs.add_collection(lc)
 
+    axs.set_xlim(x.min(), x.max())
+    axs.set_ylim([0, 1])
+    axs.set_xticks(range(min(samples),max(samples),50))
+    axs.set_xticklabels(rec_to_time(range(min(samples),max(samples),50),TR=tr),rotation=60,fontsize=fontsize)
+    axs.set_ylabel('Concordance', fontsize=fontsize)
+    plt.tight_layout()
+    return (fig, axs)
+
+def plot_weighted_concordance(data, weighting_dict=None, fontsize=18, tr=2.0, normalize=True):
+
+    if weighting_dict is None:
+        weighting_dict = {x:1 for x in data['Cluster'].unique()}
+
+    if normalize:
+        weights = np.array(list(weighting_dict.values())).reshape(-1,1)
+        if len(set(weights.flatten())) > 1:
+            scaler = MinMaxScaler()
+            weights = scaler.fit_transform(weights)
+        for i,x in enumerate(weighting_dict):
+            weighting_dict.update({x: weights.flatten()[i]})
+    samples = [i for i in data.columns if isinstance(i, (float,int))]
+    colors = sns.color_palette("hls", len(data['Cluster'].unique()))
+    fig, axs = plt.subplots(1, sharex=True, sharey=True, figsize=(15,3))
+
+    for cluster in sorted(data['Cluster'].unique()):
+        y = data.loc[data.loc[:,"Cluster"]==cluster,:].drop('Cluster', axis=1).mean()
+        x = y.index
+        y = y.values
+        c = colors[cluster] + (weighting_dict[cluster],)
+        axs.plot(x,y,color=c)
     axs.set_xlim(x.min(), x.max())
     axs.set_ylim([0, 1])
     axs.set_xticks(range(min(samples),max(samples),50))

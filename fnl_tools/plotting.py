@@ -233,7 +233,7 @@ def plot_concordance(data, sim_data=None, fontsize=18, p_threshold=0.05, tr=2.0,
             y = data.loc[data.loc[:,"Cluster"]==cluster,:].drop('Cluster', axis=1).mean()
             x = y.index
             y = y.values
-            color_list = create_opacity(colors[cluster], y, opacity=opacity)
+            color_list = _create_opacity(colors[cluster], y, opacity=opacity)
 
             points = np.array([x, y]).T.reshape(-1, 1, 2)
             segments = np.concatenate([points[:-1], points[1:]], axis=1)

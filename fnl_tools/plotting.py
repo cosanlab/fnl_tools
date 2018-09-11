@@ -200,7 +200,8 @@ def _create_simulation_pdf(data):
         p[np.round(i, decimals=2)] = np.mean(data['Prediction']>i)
     return p
 
-def plot_concordance(data, sim_data=None, fontsize=18, p_threshold=0.05, tr=2.0, opacity=True):
+def plot_concordance(data, sim_data=None, fontsize=18, p_threshold=0.05, tr=2.0,
+                     opacity=True, legend=True):
 
     samples = [i for i in data.columns if isinstance(i, (float,int))]
     colors = sns.color_palette("hls", len(data['Cluster'].unique()))
@@ -226,6 +227,8 @@ def plot_concordance(data, sim_data=None, fontsize=18, p_threshold=0.05, tr=2.0,
             lc = LineCollection(segments, colors=color_list, cmap=None)
             lc.set_linewidth(2)
             axs.add_collection(lc)
+            if legend:
+                axs.legend(cluster+1,title='Cluster',fontsize=14,loc='upper left')
 
         plt.axhline(ci, linestyle='--', alpha=.5, color='grey')
     else:
@@ -241,6 +244,8 @@ def plot_concordance(data, sim_data=None, fontsize=18, p_threshold=0.05, tr=2.0,
             lc = LineCollection(segments, colors=color_list, cmap=None)
             lc.set_linewidth(2)
             axs.add_collection(lc)
+            if legend:
+                axs.legend(cluster+1,title='Cluster',fontsize=14,loc='upper left')
 
     axs.set_xlim(x.min(), x.max())
     axs.set_ylim([0, 1])
@@ -250,7 +255,8 @@ def plot_concordance(data, sim_data=None, fontsize=18, p_threshold=0.05, tr=2.0,
     plt.tight_layout()
     return (fig, axs)
 
-def plot_weighted_concordance(data, weighting_dict=None, fontsize=18, tr=2.0, normalize=True):
+def plot_weighted_concordance(data, weighting_dict=None, fontsize=18, tr=2.0,
+                                normalize=True, legend=True):
 
     if weighting_dict is None:
         weighting_dict = {x:1 for x in data['Cluster'].unique()}
@@ -272,6 +278,8 @@ def plot_weighted_concordance(data, weighting_dict=None, fontsize=18, tr=2.0, no
         y = y.values
         c = colors[cluster] + (weighting_dict[cluster],)
         axs.plot(x,y,color=c)
+        if legend:
+            axs.legend(cluster+1,title='Cluster',fontsize=14,loc='upper left')
     axs.set_xlim(x.min(), x.max())
     axs.set_ylim([0, 1])
     axs.set_xticks(range(min(samples),max(samples),50))

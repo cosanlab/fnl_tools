@@ -312,3 +312,16 @@ class PCA(object):
         '''Fit PCA Model and apply it to X'''
         self.fit(X)
         return self.transform(X)
+
+def bic(ll, k, n):
+    ''' Calculate BIC
+
+    Args:
+        ll: log-likelihood
+        k: number of states
+        n: number of observations
+    Returns:
+        bic: bayesian information criterion
+
+    '''
+    return (np.log(n)*k - 2*ll)

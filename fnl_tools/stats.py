@@ -259,6 +259,12 @@ def autocorrelation(data, delay=30):
         autocorr.append(np.mean(np.diag(r,k=d)))
     return np.array(autocorr)
 
+def extract_max_timeseries(k, roi, analysis):
+    within_mean = pd.read_csv(os.path.join(base_dir, 'Analyses', analysis, 'HMM_WithinPatternSimilarity_k%s_ROI%s.csv' % (k,roi)),index_col=0,header=None)
+    max_state = within_mean.iloc[:,0].idxmax()
+    sorted_data = pd.read_csv(os.path.join(base_dir, 'Analyses', analysis, 'HMM_AlignedTimeSeries_k%s_ROI%s.csv' % (k,roi)),index_col=0)
+    return sorted_data.loc[sorted_data['Cluster']==max_state,:].drop(['Cluster','Subject'],axis=1).mean()
+
 def bic(ll,k,n):
     ''' Calculate BIC
 
@@ -312,16 +318,3 @@ class PCA(object):
         '''Fit PCA Model and apply it to X'''
         self.fit(X)
         return self.transform(X)
-
-def bic(ll, k, n):
-    ''' Calculate BIC
-
-    Args:
-        ll: log-likelihood
-        k: number of states
-        n: number of observations
-    Returns:
-        bic: bayesian information criterion
-
-    '''
-    return (np.log(n)*k - 2*ll)

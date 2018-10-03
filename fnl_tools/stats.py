@@ -259,7 +259,7 @@ def autocorrelation(data, delay=30):
         autocorr.append(np.mean(np.diag(r,k=d)))
     return np.array(autocorr)
 
-def extract_max_timeseries(k, roi, analysis):
+def extract_max_timeseries(k, roi, analysis, base_dir):
     within_mean = pd.read_csv(os.path.join(base_dir, 'Analyses', analysis, 'HMM_WithinPatternSimilarity_k%s_ROI%s.csv' % (k,roi)),index_col=0,header=None)
     max_state = within_mean.iloc[:,0].idxmax()
     sorted_data = pd.read_csv(os.path.join(base_dir, 'Analyses', analysis, 'HMM_AlignedTimeSeries_k%s_ROI%s.csv' % (k,roi)),index_col=0)

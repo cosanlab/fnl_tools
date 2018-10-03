@@ -122,7 +122,10 @@ def plot_wavelet(data, n_bins=50, n_decimal=4, title=None, file_name=None):
     if file_name is not None:
         plt.savefig(file_name)
 
-def plot_avg_state_timeseries(data, groupby=None, line_width=3, overlay=True, color='skyblue', file_name=None, tr=2., ylim=[0,.4],ax=None, legend=True):
+def plot_avg_state_timeseries(data, groupby=None, line_width=3, overlay=True,
+                              color='skyblue', file_name=None, tr=2.,
+                              fontsize=18, ylim=None, xlabel='Time',
+                              ylabel='Concordance',ax=None, legend=True):
     '''
     Plot average state timeseries
 
@@ -150,10 +153,15 @@ def plot_avg_state_timeseries(data, groupby=None, line_width=3, overlay=True, co
             for i,x in enumerate(groups):
                 data.loc[group_idx==x,:].mean().plot(kind='line',ax=ax, color=color[i], linewidth=line_width)
                 ax.set_xticks(range(data.columns.min(),data.columns.max(),50))
-                ax.set_xticklabels(rec_to_time(range(data.columns.min(),data.columns.max(),50),TR=tr),rotation=60,fontsize=14)
+                ax.set_xticklabels(rec_to_time(range(data.columns.min(),data.columns.max(),50),TR=tr),rotation=60,fontsize=fontsize)
                 if legend:
-                    ax.legend(groups+1,title='State',fontsize=14,loc='upper left')
-                ax.set_ylabel('State Probability',fontsize=16)
+                    ax.legend(groups+1,title='State',fontsize=fontsize,loc='upper left')
+                ax.set_ylabel(ylabel, fontsize=fontsize)
+                ax.set_xlabel(xlabel, fontsize=fontsize)
+                if ylim is not None:
+                    ax.set_ylim(ylim)
+                ax.tick_params(axis='both', which='major', labelsize=fontsize)
+
         else:
             if overlay:
                 fig,axes = plt.subplots(figsize=(20,5))
@@ -164,19 +172,23 @@ def plot_avg_state_timeseries(data, groupby=None, line_width=3, overlay=True, co
                 if overlay:
                     data.loc[group_idx==x,:].mean().plot(kind='line',ax=axes, color=color[i], linewidth=line_width)
                     axes.set_xticks(range(data.columns.min(),data.columns.max(),50))
-                    axes.set_xticklabels(rec_to_time(range(data.columns.min(),data.columns.max(),50),TR=tr),rotation=60,fontsize=14)
+                    axes.set_xticklabels(rec_to_time(range(data.columns.min(),data.columns.max(),50),TR=tr),rotation=60,fontsize=fontsize)
                     if legend:
                         plt.legend(groups+1,title='State',fontsize=14,loc='upper left')
-                    plt.ylabel('State Probability',fontsize=16)
+                    if ylim is not None:
+                        axes.set_ylim(ylim)
+                    axes.set_ylabel(ylabel, fontsize=fontsize)
                 else:
                     data.loc[group_idx==x,:].mean().plot(kind='line',ax=axes[i], color=color[i], linewidth=line_width)
                     axes[i].set_xticks(range(data.columns.min(),data.columns.max(),50))
-                    axes[i].set_xticklabels(rec_to_time(range(data.columns.min(),data.columns.max(),50),TR=tr),rotation=60,fontsize=14)
-                    axes[i].set_ylim(ylim)
-                    axes[i].set_ylabel('State %s' % (i + 1),fontsize=14)
+                    axes[i].set_xticklabels(rec_to_time(range(data.columns.min(),data.columns.max(),50),TR=tr),rotation=60,fontsize=fontsize)
+                    if ylim is not None:
+                        axes[i].set_ylim(ylim)
+                    axes[i].set_ylabel('%s %s' % (ylabel, i + 1), fontsize=fontsize)
 
-            plt.xlabel('Time',fontsize=16)
+            plt.xlabel(xlabel,fontsize=fontsize)
             plt.tight_layout()
+            plt.tick_params(axis='both', which='major', labelsize=fontsize)
 
         if ax is None:
             if file_name is not None:

@@ -11,7 +11,7 @@ from sklearn.preprocessing import MinMaxScaler
 from copy import deepcopy
 
 def plot_recurrence(data, labels=None, file_name=None,
-                    color = None,
+                    color = None, line_width=3,
                     title=None, tr=2., cmap=None, vmin=-1, vmax=1):
     '''
     This function plots a recurrence plot.
@@ -30,7 +30,7 @@ def plot_recurrence(data, labels=None, file_name=None,
                 raise ValueError('Make sure list of colors matches length of unique states')
         for i,s in enumerate(states):
             for start,duration in get_rect_coord(labels==s).items():
-                rect = patches.Rectangle((start,start), duration, duration, linewidth=2, edgecolor=color[i], facecolor='none')
+                rect = patches.Rectangle((start,start), duration, duration, linewidth=line_width, edgecolor=color[i], facecolor='none')
                 ax.add_patch(rect)
 
     ax.set_xticks(range(0,data.shape[0],50))

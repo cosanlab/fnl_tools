@@ -1,6 +1,7 @@
 from __future__ import division
 import numpy as np
 import pandas as pd
+from sklearn.preprocessing import binarize 
 
 def get_rect_coord(labels):
     '''
@@ -47,7 +48,7 @@ def clean(dm, replace_na=True):
                     remove.append(j)
     dm.drop(remove, inplace=True, axis=1)
     return dm
-    
+
 def expand_states(data):
     ''' Given an input of vector labels from HMM, expand into separate variables'''
     out = {}

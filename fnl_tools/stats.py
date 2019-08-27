@@ -1,4 +1,27 @@
 from __future__ import division
+'''
+FNL-tools Statistics Tools
+===========================
+
+Tools to help with statistical analyses.
+'''
+
+__all__ = ['calc_fft',
+           'sort_subject_clusters',
+           'validity_index',
+           'align_clusters_groups',
+           'group_cluster_consensus',
+           'delay_coord_embedding',
+           'calc_spatial_temporal_correlation',
+           'autocorrelation',
+           'extract_max_timeseries',
+           'bic',
+           'PCA'
+           ]
+__author__ = ["Luke Chang", "Jin Hyun Cheong"]
+__license__ = "MIT"
+
+
 import numpy as np
 import os
 from copy import deepcopy

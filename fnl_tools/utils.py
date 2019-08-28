@@ -12,7 +12,7 @@ __all__ = ['get_rect_coord',
            'clean',
            'expand_states',
            'parse_triangle',
-           'load_dyad_df'
+           'load_dyad_df',
            'sort_srm',
            'align_srms'
            ]

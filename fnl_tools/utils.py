@@ -23,7 +23,7 @@ __license__ = "MIT"
 import numpy as np
 import pandas as pd
 from sklearn.preprocessing import binarize 
-from sklearn.metris import pairwise_distances
+from sklearn.metrics import pairwise_distances
 import scipy
 from scipy.stats import pearsonr
 from nltools.data import Adjacency
@@ -35,7 +35,7 @@ def get_rect_coord(labels):
     '''
     labels = np.array(labels)
     count_on = 0
-    start = []; duration = [];
+    start = []; duration = []
     for i,x in enumerate(labels):
         if x:
             if count_on==0:

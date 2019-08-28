@@ -9,6 +9,7 @@ from matplotlib.collections import LineCollection
 from fnl_tools.utils import rec_to_time, get_rect_coord
 from sklearn.preprocessing import MinMaxScaler
 from copy import deepcopy
+import pywt
 
 def plot_recurrence(data, labels=None, file_name=None,
                     color = None, line_width=3,
@@ -88,14 +89,14 @@ def plot_raster(data, groupby=None, line_width=3, color='skyblue', file_name=Non
         plt.savefig(file_name)
     return (fig, axes)
 
-def plot_wavelet(data, n_bins=50, n_decimal=4, title=None, file_name=None):
+def plot_wavelet(data, tr=2.0, n_bins=50, n_decimals=4, title=None, file_name=None):
     '''
     Plot a heatmap of a wavelet decomposition
 
     Args:
         data: data by time pandas object.
         n_bins: number of frequency bins
-        n_decimal: number of decimal places to round
+        n_decimals: number of decimal places to round
         title: Title for plot
         file_name: name of filename to save plot
         legend: (bool) include legend
@@ -106,16 +107,16 @@ def plot_wavelet(data, n_bins=50, n_decimal=4, title=None, file_name=None):
 
     '''
     data = data.copy()
-    plt.figure(figsize=(15,10))
-    cA, cD = pywt.cwt(data,np.arange(1,n_bins),'morl')
-    sns.heatmap(cA**2,yticklabels=False,xticklabels=False)
+    plt.figure(figsize=(15, 10))
+    cA, cD = pywt.cwt(data,np.arange(1, n_bins), 'morl')
+    sns.heatmap(cA**2,yticklabels=False, xticklabels=False)
     ax = plt.gca()
-    ax.set_yticks(range(0,len(cD),5))
-    ax.set_yticklabels(np.round(cD[range(0,len(cD),5)],decimals=n_decimals),fontsize=14)
+    ax.set_yticks(range(0, len(cD), 5))
+    ax.set_yticklabels(np.round(cD[range(0, len(cD), 5)], decimals=n_decimals), fontsize=14)
     plt.ylabel('Frequency (Hz)',fontsize=16)
     ax.set_xticks(range(0,len(data),50))
-    ax.set_xticklabels(rec_to_time(range(0,len(data),50),TR=tr),rotation=60,fontsize=14)
-    plt.xlabel('Time',fontsize=16)
+    ax.set_xticklabels(rec_to_time(range(0, len(data), 50), TR=tr), rotation=60, fontsize=14)
+    plt.xlabel('Time', fontsize=16)
     if title is not None:
         plt.title(title, fontsize=18)
     plt.tight_layout()
@@ -149,7 +150,7 @@ def plot_avg_state_timeseries(data, groupby=None, line_width=3, overlay=True,
         data.drop(groupby, axis=1, inplace=True)
         if ax is not None:
             if not overlay:
-                raise NotImplemented('Setting non overlay plots to a specific axis is not implemented yet.')
+                raise NotImplementedError('Setting non overlay plots to a specific axis is not implemented yet.')
             for i,x in enumerate(groups):
                 data.loc[group_idx==x,:].mean().plot(kind='line',ax=ax, color=color[i], linewidth=line_width)
                 ax.set_xticks(range(data.columns.min(),data.columns.max(),50))

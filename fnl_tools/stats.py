@@ -301,6 +301,19 @@ def bic(ll,k,n):
     '''
     return (np.log(n)*k - 2*ll)
 
+def create_avg_concordance(k, roi, analysis, base_dir):
+    '''Create average concordance for a specific HMM state'''
+    sorted_data = pd.read_csv(os.path.join(base_dir, 'Analyses', analysis, 'HMM_AlignedTimeSeries_k%s_ROI%s.csv' % (k,roi)),index_col=0)
+    temporal_mn = {}
+    for i in range(k):
+        temporal_mn[i] = sorted_data.loc[sorted_data['Cluster']==i,:].drop(['Cluster','Subject'],axis=1).mean()
+    return pd.DataFrame(temporal_mn)
+
+def calculate_r_square(Y, X, betas):
+    '''Calculate r^2 of regression model based on Gelman & Hill pg 41'''
+    sigma_hat = np.sqrt(np.sum(((Y - np.dot(X, betas))**2)/(len(Y) - X.shape[1])))
+    return 1 - ((sigma_hat**2)/(np.std(Y)**2))
+
 class PCA(object):
     '''
     Compute PCA on Correlation Matrix

@@ -24,6 +24,7 @@ __license__ = "MIT"
 
 import numpy as np
 import os
+import glob
 from copy import deepcopy
 import pandas as pd
 from nltools.stats import pearson
@@ -231,7 +232,7 @@ def exponential_func_2param(x, b, c):
 def exponential_func_1param(x, b):
     return b*np.exp(-b * x)
 
-def calc_spatial_temporal_correlation(roi, data_dir='/Volumes/Manifesto/Data/fnl/preprocessed'):
+def calc_spatial_temporal_correlation(roi, base_dir, data_dir='/Volumes/Manifesto/Data/fnl/preprocessed'):
     # Load Time series for each subject
     file_list = glob.glob(os.path.join(data_dir,'roi_denoised','*','*CSF*ROI%s.csv' % (roi)))
     sub_id = [x.split('/')[-2].split('-')[1] for x in file_list]

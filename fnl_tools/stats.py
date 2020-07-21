@@ -191,7 +191,7 @@ def align_clusters_groups(group1, group2):
     group2_new = group2_new.reindex_axis(sorted(group2_new.columns), axis=1)
     group2_new.index = group2.index
     return (group2_new, remapped_columns)
-
+ 
 def group_cluster_consensus(group1, group2, align=False):
     '''Calculate cluster average reliability of clusters
 
@@ -210,7 +210,7 @@ def group_cluster_consensus(group1, group2, align=False):
         raise ValueError('Make sure groups are same size.')
 
     if align:
-        group2 = align_clusters_groups(group1,group2)
+        group2 = align_clusters_groups(group1, group2)
 
     r = group1.T.append(group2.T).T.corr()
     n_clust = group1.shape[1]

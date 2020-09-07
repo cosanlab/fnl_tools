@@ -28,11 +28,12 @@ import glob
 from copy import deepcopy
 import pandas as pd
 from nltools.data import Adjacency
-from nltools.stats import pearson, align_states
+from nltools.stats import pearson, align_states, isc
+from nltools.mask import expand_mask, roi_to_brain
 from sklearn.metrics import pairwise_distances
 from scipy.linalg import eigh
 from scipy.optimize import curve_fit
-from nltools.data import Adjacency
+from tqdm import tqdm
 
 def calc_fft(signal, Fs):
     ''' Calculate FFT of signal
@@ -272,18 +273,6 @@ def calc_spatial_temporal_correlation(roi, base_dir, data_dir='/Volumes/Manifest
 def mean_weighted_by_inverse_variance(effect_size, std):
     return np.sum(effect_size*(std**2))/(np.sum(std**2))
 
-def autocorrelation(data, delay=30):
-    out = deepcopy(data)
-    for d in range(1,delay+1):
-        out = np.vstack([out,np.concatenate([data[d:],[np.nan]*d])])
-    out = out.T
-    out = out[:-delay]
-    r = np.corrcoef(out.T)
-    autocorr = []
-    for d in range(1,delay+1):
-        autocorr.append(np.mean(np.diag(r,k=d)))
-    return np.array(autocorr)
-
 def extract_max_timeseries(k, roi, analysis, base_dir):
     within_mean = pd.read_csv(os.path.join(base_dir, 'Analyses', analysis, 'HMM_WithinPatternSimilarity_k%s_ROI%s.csv' % (k,roi)),index_col=0,header=None)
     max_state = within_mean.iloc[:,0].idxmax()
@@ -319,52 +308,6 @@ def create_average_concordance(data, values='Viterbi'):
     for i in range(n_states):
         concordance[f'State_{i}'] = (states == i).mean(axis=1)
     return pd.DataFrame(concordance)
-
-def calculate_r_square(Y, X, betas):
-    '''Calculate r^2 of regression model based on Gelman & Hill pg 41'''
-    sigma_hat = np.sqrt(np.sum(((Y - np.dot(X, betas))**2)/(len(Y) - X.shape[1])))
-    return 1 - ((sigma_hat**2)/(np.std(Y)**2))
-
-class PCA(object):
-    '''
-    Compute PCA on Correlation Matrix
-
-    Args:
-        data: n x n correlation matrix
-        n_components: number of components to return
-
-    '''
-    def __init__(self, n_components=None):
-        self.n_components = n_components
-
-    def fit(self, X):
-        '''Fit PCA Model'''
-        # calculate eigenvectors & eigenvalues of the covariance matrix
-        # use 'eigh' rather than 'eig' since R is symmetric,
-        # the performance gain is substantial
-        X = np.array(X, dtype=np.float64)
-        evals, evecs = eigh(X)
-
-        # sort eigenvalue in decreasing order
-        idx = np.argsort(evals)[::-1]
-        self.evals = evals
-        self.idx = idx
-        self.explained_variance_ = evals[idx]
-        self.explained_variance_ratio_ = self.explained_variance_/np.sum(evals)
-        self.components_ = evecs[:,idx]
-        if self.n_components is not None:
-            self.explained_variance_ = self.explained_variance_[:self.n_components]
-            self.explained_variance_ratio_ = self.explained_variance_ratio_[:self.n_components]
-            self.components_ = self.components_[:, :self.n_components]
-
-    def transform(self, X):
-        '''Apply PCA model to X'''
-        return np.dot(self.components_.T, X.T).T
-
-    def fit_transform(self, X):
-        '''Fit PCA Model and apply it to X'''
-        self.fit(X)
-        return self.transform(X)
 
 def cluster_consensus(weights, align=True, metric='correlation', consensus_metric='within_between', 
                       cluster_metric='mean', verbose=True):
@@ -492,6 +435,11 @@ def compute_ISC_all_roi(data_dir, mask_x, episode = 'ep01'):
     p_brain = roi_to_brain(p, mask_x=mask_x)
     return (r_brain, p_brain)
 
+def calculate_r_square(Y, X, betas):
+    '''Calculate r^2 of regression model based on Gelman & Hill pg 41'''
+    sigma_hat = np.sqrt(np.sum(((Y - np.dot(X, betas))**2)/(len(Y) - X.shape[1])))
+    return 1 - ((sigma_hat**2)/(np.std(Y)**2))
+
 def calc_r_square(Y, predicted_y):
     SS_total = np.sum((Y - np.mean(Y))**2)
     SS_residual = np.sum((Y - predicted_y)**2)
@@ -549,5 +497,45 @@ def autocorrelation(data, delay=50):
         autocorr.append(np.mean(np.diag(r, k=d)))
     return np.array(autocorr)
 
-def mean_weighted_by_inverse_variance(effect_size, std):
-    return np.sum(effect_size*(std**2))/(np.sum(std**2)) 
+center = lambda x: (x - np.mean(x, axis=0))
+
+class PCA(object):
+    '''
+    Compute PCA on Correlation Matrix
+
+    Args:
+        data: n x n correlation matrix
+        n_components: number of components to return
+
+    '''
+    def __init__(self, n_components=None):
+        self.n_components = n_components
+
+    def fit(self, X):
+        '''Fit PCA Model'''
+        # calculate eigenvectors & eigenvalues of the covariance matrix
+        # use 'eigh' rather than 'eig' since R is symmetric,
+        # the performance gain is substantial
+        X = np.array(X, dtype=np.float64)
+        evals, evecs = eigh(X)
+
+        # sort eigenvalue in decreasing order
+        idx = np.argsort(evals)[::-1]
+        self.evals = evals
+        self.idx = idx
+        self.explained_variance_ = evals[idx]
+        self.explained_variance_ratio_ = self.explained_variance_/np.sum(evals)
+        self.components_ = evecs[:,idx]
+        if self.n_components is not None:
+            self.explained_variance_ = self.explained_variance_[:self.n_components]
+            self.explained_variance_ratio_ = self.explained_variance_ratio_[:self.n_components]
+            self.components_ = self.components_[:, :self.n_components]
+
+    def transform(self, X):
+        '''Apply PCA model to X'''
+        return np.dot(self.components_.T, X.T).T
+
+    def fit_transform(self, X):
+        '''Fit PCA Model and apply it to X'''
+        self.fit(X)
+        return self.transform(X)

@@ -1,6 +1,6 @@
-from __future__ import division
 import numpy as np
 import pandas as pd
+from nltools.data import Adjacency
 
 def create_long_character_annotation(annotations, movie_len=45*60+17, character_list=None):
     if character_list is not None:
@@ -54,3 +54,37 @@ def create_scene_annotation(annotations, n_tr = 1364, tr=2.0):
             stop = n_tr
         dm.loc[start:stop,'Scene'] = s['Scene']
     return dm
+
+def create_emotion_df(dat, name='Joy'):
+    '''Create Dataframe from Emotion Rating Dataset'''
+    dat = pd.DataFrame(columns=range(1364*2))
+    for i in ratings[name]:
+        for j in ratings[name][i]:
+            dat.loc[int(float(i)),int(float(j))] = ratings[name][i][j]
+    dat.replace(-1, 0, inplace=True)
+    return dat
+
+
+def convert_data_from_database(file_name, output_file_name):
+    '''Simple function to convert data into json object.
+    Written by Nathan Greenstein 
+    '''
+    data = {}
+
+    with open(file_name) as csvFile:
+        reader = csv.DictReader(csvFile)
+        for row in reader:
+            second = round(float(row["time"]))
+            ratings = json.loads(row["emotion"])
+            for emotion, rating in ratings.items():
+                thisEmotion = data.get(emotion, {})
+                thisParticipant = thisEmotion.get(int(row["participant"]), {})
+                thisParticipant[second] = int(rating)
+                thisEmotion[int(row["participant"])] = thisParticipant
+                data[emotion] = thisEmotion
+
+    dump = json.dumps(data)
+    fh = open(output_file_name,"w")
+    fh.write(dump)
+    fh.close()
+    return json.dumps(data)

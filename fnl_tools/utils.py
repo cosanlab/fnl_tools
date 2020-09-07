@@ -36,18 +36,19 @@ def get_rect_coord(labels):
     labels = np.array(labels)
     count_on = 0
     start = []; duration = []
-    for i,x in enumerate(labels):
-        if x:
-            if count_on==0:
-                start.append(i)
-            count_on = count_on + 1
-        if ~x:
-            if count_on > 0:
-                duration.append(count_on)
-            count_on = 0
-        if i==len(labels)-1:
-            if count_on > 0:
-                duration.append(count_on)
+    for state in set(labels):
+        for i,x in enumerate(labels):
+            if x == state:
+                if count_on==0:
+                    start.append(i)
+                count_on = count_on + 1
+            elif x != state:
+                if count_on > 0:
+                    duration.append(count_on)
+                count_on = 0
+            if i == len(labels)-1:
+                if count_on > 0:
+                    duration.append(count_on)
     return dict(zip(start,duration))
 
 def rec_to_time(values, TR=2., fps=None):

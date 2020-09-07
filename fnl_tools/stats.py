@@ -27,7 +27,8 @@ import os
 import glob
 from copy import deepcopy
 import pandas as pd
-from nltools.stats import pearson
+from nltools.data import Adjacency
+from nltools.stats import pearson, align_states
 from sklearn.metrics import pairwise_distances
 from scipy.linalg import eigh
 from scipy.optimize import curve_fit
@@ -188,7 +189,7 @@ def align_clusters_groups(group1, group2):
         group1_selected.iloc[:,idx] = np.nan #block column from being rematched
     group2_new = pd.DataFrame(group2_new)
     remapped_columns = {x:group2_new.columns[x] for x in range(group2_new.shape[1])}
-    group2_new = group2_new.reindex_axis(sorted(group2_new.columns), axis=1)
+    group2_new = group2_new.reindex(sorted(group2_new.columns), axis=1)
     group2_new.index = group2.index
     return (group2_new, remapped_columns)
  
@@ -302,13 +303,22 @@ def bic(ll,k,n):
     '''
     return (np.log(n)*k - 2*ll)
 
-def create_avg_concordance(k, roi, analysis, base_dir):
-    '''Create average concordance for a specific HMM state'''
-    sorted_data = pd.read_csv(os.path.join(base_dir, 'Analyses', analysis, 'HMM_AlignedTimeSeries_k%s_ROI%s.csv' % (k,roi)),index_col=0)
-    temporal_mn = {}
-    for i in range(k):
-        temporal_mn[i] = sorted_data.loc[sorted_data['Cluster']==i,:].drop(['Cluster','Subject'],axis=1).mean()
-    return pd.DataFrame(temporal_mn)
+# def create_avg_concordance(k, roi, analysis, base_dir):
+#     '''Create average concordance for a specific HMM state'''
+#     sorted_data = pd.read_csv(os.path.join(base_dir, 'Analyses', analysis, 'HMM_AlignedTimeSeries_k%s_ROI%s.csv' % (k,roi)),index_col=0)
+#     temporal_mn = {}
+#     for i in range(k):
+#         temporal_mn[i] = sorted_data.loc[sorted_data['Cluster']==i,:].drop(['Cluster','Subject'],axis=1).mean()
+#     return pd.DataFrame(temporal_mn)
+
+
+def create_average_concordance(data, values='Viterbi'):
+    states = data.pivot(columns='Subject', values=values)
+    n_states = len(np.unique(states.dropna()))
+    concordance = {}
+    for i in range(n_states):
+        concordance[f'State_{i}'] = (states == i).mean(axis=1)
+    return pd.DataFrame(concordance)
 
 def calculate_r_square(Y, X, betas):
     '''Calculate r^2 of regression model based on Gelman & Hill pg 41'''
@@ -355,3 +365,189 @@ class PCA(object):
         '''Fit PCA Model and apply it to X'''
         self.fit(X)
         return self.transform(X)
+
+def cluster_consensus(weights, align=True, metric='correlation', consensus_metric='within_between', 
+                      cluster_metric='mean', verbose=True):
+    '''Get the overall pattern consensus across measurements
+    
+    Args:
+        weights: (list) list of weight matrices (state x pattern)
+        align: (bool) align states if True, otherwise assume they are already aligned
+        metric: (str) distance metric to use
+        consensus_metric: (str) method to summarize cluster metrics. Use mean, median, 
+                          or max within_between when calculating consensus over clusters.                
+        cluster_metric: (str) use mean or median when computing within cluster similarity.
+
+    Returns:
+        mean: (float) average cluster consensus across states
+    
+    '''
+    
+    if consensus_metric not in ['max', 'mean', 'median', 'within_between']:
+        raise ValueError("consensus_metric must be ['mean', 'median', 'max', 'within_between']")
+
+    if cluster_metric not in ['mean', 'median']:
+        raise ValueError("cluster_metric must be ['mean', 'median']")   
+
+    if align:
+        reference = weights[np.random.choice(range(len(weights)))].T
+
+        ordered_weights = []
+        for i,w in enumerate(weights):
+            try:
+                ordered_weights.append(align_states(reference, w.T, metric=metric, return_index=False, replace_zero_variance=True))
+            except:
+                if verbose:
+                    print(f'Weight{i+1} not converging with hungarian algorithm')
+                warnings.warn('Nans in alignment')
+    else:
+        ordered_weights = weights.copy()
+
+    # Plot reordered spatial similarity
+    k = weights[0].shape[0]
+    n = len(ordered_weights)
+    clusters = list(np.hstack([np.ones(n).astype(int)*x for x in range(k)]))
+
+    rearranged = []
+    for i in range(k):
+        for w in ordered_weights:
+            rearranged.append(w[:,i])
+    state_similarity = Adjacency(1 - pairwise_distances(np.vstack(rearranged), metric=metric), matrix_type='similarity')
+
+    state_mean = state_similarity.cluster_summary(clusters=clusters, metric=cluster_metric, summary='within')
+
+    if consensus_metric == 'mean':
+        consensus = np.mean(list(state_mean.values()))
+    elif consensus_metric == 'median':
+        consensus = np.median(list(state_mean.values()))
+    elif consensus_metric == 'max':
+        consensus = np.max(list(state_mean.values()))
+    elif consensus_metric == 'within_between':
+        consensus = np.mean(list(state_similarity.cluster_summary(clusters=clusters, metric=cluster_metric, summary='within').values())) - np.mean(list(state_similarity.cluster_summary(clusters=clusters, metric=cluster_metric, summary='between').values()))
+
+    return consensus
+
+def bootstrap_consensus(weights, n_bootstraps=10, align=True, consensus_metric='mean', verbose=False):
+    '''Bootstrap consensus metric by resampling weights with replacement'''
+    
+    consensus_mean_boot = {}
+    for b in range(n_bootstraps):
+        bootstrap_id = np.random.choice(range(len(weights)), size=len(weights), replace=True)
+        bootstrap_weights = [weights[x] for x in bootstrap_id]
+        consensus_mean_boot[b] = cluster_consensus(bootstrap_weights, align=align, consensus_metric=consensus_metric, verbose=verbose)   
+    return consensus_mean_boot
+
+def hmm_bic(LL, n_states, n_observations=1364):
+    k = 2*n_states + (n_states*(n_states - 1))
+    return  k * np.log(n_observations) - 2*LL
+
+def min_subarray(data):
+    best_diff = 0
+    current_diff = 0
+    cumulative_diff = []
+    for x in data:
+        current_diff = current_diff - x
+        best_diff = min(best_diff, current_diff)
+        cumulative_diff.append(current_diff)
+    return np.where(np.array(cumulative_diff) == best_diff)[0][0] + 1
+
+def max_subarray(data):
+    """Find a contiguous subarray with the largest sum."""
+    best_sum = 0  # or: float('-inf')
+    best_start = best_end = 0  # or: None
+    current_sum = 0
+    for current_end, x in enumerate(data):
+        if current_sum <= 0:
+            # Start a new sequence at the current element
+            current_start = current_end
+            current_sum = x
+        else:
+            # Extend the existing sequence with the current element
+            current_sum += x
+
+        if current_sum > best_sum:
+            best_sum = current_sum
+            best_start = current_start
+            best_end = current_end + 1  # the +1 is to make 'best_end' exclusive
+
+    return best_start, best_end
+
+def compute_ISC_all_roi(data_dir, mask_x, episode = 'ep01'):
+    '''Run ISC across each ROI for a given study'''
+
+    roi_isc = {}
+    for roi in tqdm(range(len(mask_x))):
+        file_list = glob.glob(os.path.join(data_dir, f'*{episode}*ROI{roi}.csv'))
+        mn = {}
+        for f in file_list:
+            sub = os.path.basename(f).split('_')[0]
+            dat = pd.read_csv(f)
+            mn[sub] = dat.T.mean()
+        mn = pd.DataFrame(mn)
+        roi_isc[roi] = isc(mn)
+
+    r = pd.Series({x:roi_isc[x]['isc'] for x in roi_isc})
+    p = pd.Series({x:roi_isc[x]['p'] for x in roi_isc})
+    r_brain = roi_to_brain(r, mask_x=mask_x)
+    p_brain = roi_to_brain(p, mask_x=mask_x)
+    return (r_brain, p_brain)
+
+def calc_r_square(Y, predicted_y):
+    SS_total = np.sum((Y - np.mean(Y))**2)
+    SS_residual = np.sum((Y - predicted_y)**2)
+    return 1-(SS_residual/SS_total)
+
+def exponential_func(x, a, b, c):
+    return a * np.exp(-b * x) + c
+
+def calculate_spatial_temporal_correlation(file_list, n_lags=50, target_var=0.9):
+    auto_corr = {}
+    for f in file_list:
+        sub = os.path.basename(f).split('_')[0]
+        dat = center(pd.read_csv(f))
+
+        pca = PCA(n_components=target_var)
+        reduced = pca.fit_transform(dat)
+        reduced = pd.DataFrame(reduced)
+
+        sim = Adjacency(1 - pairwise_distances(reduced, metric='correlation'), matrix_type='similarity')
+        auto_corr[sub] = [np.diag(sim.squareform(), x).mean() for x in range(1, n_lags)]
+    auto_corr = pd.DataFrame(auto_corr)
+    auto_corr['Lag'] = auto_corr.index
+    return auto_corr
+
+def fit_exponential_function(auto_corr, maxfev=1000):
+    params={}
+    for x in auto_corr.drop(columns='Lag'):
+        try:
+            popt, pcov = curve_fit(exponential_func, auto_corr['Lag'], auto_corr[x], maxfev=maxfev)
+            params[x] = np.concatenate([popt, np.sqrt(np.diag(pcov))])
+        except:
+            params[x] = np.repeat(np.nan, 6)
+    params = pd.DataFrame(params,index=['a','b','c','a_sd','b_sd','c_sd']).T
+    params['Subject'] = params.index
+    return params
+
+def time_to_correlation(params, correlation=.1, lags=50, id_column='ROI'):
+    lag = np.arange(0,lags,1)
+    out = {}
+    for roi in params[id_column].unique():
+        pred = exponential_func(lag, params.query(f'{id_column}==@roi')['a'].values[0], params.query(f'{id_column}==@roi')['b'].values[0],params.query(f'{id_column}==@roi')['c'].values[0])
+        out[roi] = np.sum(pred>.1)
+    return pd.Series(out)
+
+def autocorrelation(data, delay=50):
+    data = np.array(data)
+    out = deepcopy(data)
+    for d in range(1, delay + 1):
+        out = np.vstack([out, np.concatenate([data[d:], [np.nan]*d])])
+    out = out.T
+    out = out[:-delay]
+    r = np.corrcoef(out.T)
+    autocorr = []
+    for d in range(1, delay + 1):
+        autocorr.append(np.mean(np.diag(r, k=d)))
+    return np.array(autocorr)
+
+def mean_weighted_by_inverse_variance(effect_size, std):
+    return np.sum(effect_size*(std**2))/(np.sum(std**2)) 

@@ -380,8 +380,8 @@ def bootstrap_consensus(weights, n_bootstraps=10, align=True, consensus_metric='
         consensus_mean_boot[b] = cluster_consensus(bootstrap_weights, align=align, consensus_metric=consensus_metric, verbose=verbose)   
     return consensus_mean_boot
 
-def hmm_bic(LL, n_states, n_observations=1364):
-    k = 2*n_states + (n_states*(n_states - 1))
+def hmm_bic(LL, n_states, n_features=82, n_observations=1364):
+    k = 2*(n_states*n_features) + (n_states*(n_states - 1)) + (n_states - 1)
     return  k * np.log(n_observations) - 2*LL
 
 def min_subarray(data):
@@ -498,6 +498,21 @@ def autocorrelation(data, delay=50):
     return np.array(autocorr)
 
 center = lambda x: (x - np.mean(x, axis=0))
+
+def global_min_max_scaler(data):
+    '''Rescale each column based on global min/max to [0,1]'''
+    global_max = data.max().max()
+    global_min = data.min().min()
+    return (data - global_min)/(global_max - global_min)
+
+def global_zscore(data):
+    '''Rescale each column based on global z-score. Keeps scaling relative across features'''
+    data = center(data)
+    data['time'] = data.index
+    data_long = data.melt(id_vars='time')
+    data = pd.concat([data_long.loc[:,['time','variable']], zscore(data_long['value'])], axis=1).pivot(index='time', columns='variable')
+    data.columns = data.columns.droplevel()
+    return data
 
 class PCA(object):
     '''

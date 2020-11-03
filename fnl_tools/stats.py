@@ -301,8 +301,8 @@ def bic(ll,k,n):
 #     return pd.DataFrame(temporal_mn)
 
 
-def create_average_concordance(data, values='Viterbi'):
-    states = data.pivot(columns='Subject', values=values)
+def create_average_concordance(data, values='Viterbi', index=None):
+    states = data.pivot(columns='Subject', values=values, index=index)
     n_states = len(np.unique(states.dropna()))
     concordance = {}
     for i in range(n_states):
@@ -514,6 +514,50 @@ def global_zscore(data):
     data.columns = data.columns.droplevel()
     return data
 
+zscore = lambda x: (x - np.mean(x, axis=0)) / np.std(x, axis=0)
+center = lambda x: (x - np.mean(x, axis=0))
+
+def calc_max_cluster_consensus_concordance(roi=32, k=4, study='Study1', analysis='HMM_Combined_v4', plot=True):
+    '''Compute max cluster conconsensus and return corresponding concordance timeseries'''
+    # Load HMM Patterns
+    file_list = glob.glob(os.path.join(base_dir,'Analyses', analysis, f'HMM_Patterns_{study}_*_k{k}_ROI{roi}_{version}_aligned.nii.gz'))
+    file_list.sort()
+    all_dat = []
+    clusters = []
+    for f in file_list:
+        sub_dat = Brain_Data(f)
+        all_dat.append(sub_dat)
+        clusters.append(np.arange(len(sub_dat)))
+    weights = Brain_Data(all_dat)
+    clusters = np.hstack(clusters)
+
+    unique_clusters = np.unique(clusters)
+    ordered_weights = []
+    ordered_clusters = []
+    for c in unique_clusters:
+        ordered_weights.append(weights[clusters==c])
+        ordered_clusters.append(clusters[clusters==c])
+    weights = Brain_Data(ordered_weights)
+    clusters = np.hstack(ordered_clusters)
+    state_similarity = 1 - weights.apply_mask(mask_x[roi]).distance(metric='correlation')
+    
+    # Load Concordance
+    concord = create_average_concordance(pd.read_csv(os.path.join(base_dir,'Analyses', analysis, f'HMM_PredictedStates_{study}_k{k}_ROI{roi}_{version}_aligned.csv'), index_col=0))
+
+    # Create Outputs
+    if plot:
+        plot_cluster_similarity(state_similarity.squareform() + np.eye(state_similarity.square_shape()[0]), labels=clusters, line_width=5)
+    
+    consensus = state_similarity.cluster_summary(clusters=clusters, summary='within')
+    
+    print(f"\nStudy={study}: ROI={roi}")
+    print(consensus)
+    print(f"Max State={max(consensus, key=consensus.get)}: Consensus={consensus[max(consensus, key=consensus.get)]}")
+
+    output = {'Concordance':concord[f'State_{max(consensus, key=consensus.get)}'],
+              'Weights':weights[clusters==max(consensus, key=consensus.get)],
+              'Consensus':{max(consensus, key=consensus.get):consensus[max(consensus, key=consensus.get)]}}
+    return output
 class PCA(object):
     '''
     Compute PCA on Correlation Matrix

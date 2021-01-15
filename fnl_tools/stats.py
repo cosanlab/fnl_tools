@@ -17,7 +17,9 @@ __all__ = ['calc_fft',
            'extract_max_timeseries',
            'bic',
            'PCA',
-           'crosscorr'
+           'crosscorr', 
+           'subjectwise_bootstrap',
+           
            ]
 __author__ = ["Luke Chang", "Jin Hyun Cheong"]
 __license__ = "MIT"
@@ -29,12 +31,16 @@ import glob
 from copy import deepcopy
 import pandas as pd
 from nltools.data import Adjacency
-from nltools.stats import pearson, align_states, isc
+# from nltools.stats import pearson, align_states, isc
 from nltools.mask import expand_mask, roi_to_brain
 from sklearn.metrics import pairwise_distances
 from scipy.linalg import eigh
 from scipy.optimize import curve_fit
 from tqdm import tqdm
+from scipy.spatial.distance import squareform
+from sklearn.utils import check_random_state
+from scipy import stats
+from .utils import parse_triangle
 
 def calc_fft(signal, Fs):
     ''' Calculate FFT of signal
@@ -618,3 +624,162 @@ def crosscorr(datax, datay, lag=0, wrap=False):
         return datax.corr(shiftedy)
     else:
         return datax.corr(datay.shift(lag))
+
+def subjectwise_bootstrap(a, condition):
+    """Subjectwise bootstrapping.
+
+    Args:
+        a (dataframe): Original data.
+        condition ([type]): condition to be used for parse_triangle function (upper, pair, nonpairs.)
+
+    Returns:
+        avg: [description]
+        asyncrs: r values from permutation.
+    """    
+    random_state=1
+    MAX_INT = np.info(np.int32).max
+    n_samples = 5000
+    random_state = check_random_state(random_state)
+    seeds = random_state.randint(MAX_INT, size=n_samples)
+    asyncrs = []
+    for permute_ix in tqdm(range(n_samples)):
+        data_row_id = range(a.shape[0])
+        # matrix resample shuffle the groups
+        ix = random_state.choice(data_row_id,
+                           size=len(data_row_id),
+                           replace=True) 
+        shuffled = parse_triangle(a.iloc[ix,ix].replace({1:np.nan}),condition=condition)
+        shuffled = shuffled[~np.isnan(shuffled)]
+        shuffled = shuffled[np.isfinite(shuffled)]
+        asyncrs.append(np.mean(shuffled))
+    asyncrs = np.array(asyncrs)
+    avg = (1+np.sum(asyncrs<= 0.))/(1+n_samples)
+    return avg, asyncrs
+
+def circle_shift(a, condition, max_shift=10):
+    """Circle shift dyad face expression data.
+
+    Args:
+        a (dataframe): This is a dataframe of time (row) x subject (col) for facial expressions 
+        condition (str): 'upper' for alone subjects or 'pairs' or dyads. 
+        max_shift (int, optional): [description]. Defaults to 10.
+
+    Returns:
+        avg: [description]
+        asyncrs: r values from permuted circle shifting.
+    """
+    random_state=1
+    MAX_INT = np.iinfo(np.int32).max
+    n_samples = 5000
+    random_state = check_random_state(random_state)
+    seeds = random_state.randint(MAX_INT, size=n_samples)
+    asyncrs = []
+    for permute_ix in tqdm(range(n_samples)):
+        data_row_id = range(a.shape[0])
+        # circle shift
+        shifted_corr = a.apply(lambda x: x.reindex(index=np.roll(x.index, np.random.randint(max_shift))).reset_index(drop=True), axis=0).corr()
+              
+        shuffled = parse_triangle(shifted_corr.replace({1:np.nan}), condition=condition)
+        shuffled = shuffled[~np.isnan(shuffled)]
+        shuffled = shuffled[np.isfinite(shuffled)]
+        asyncrs.append(np.mean(shuffled))
+    asyncrs = np.array(asyncrs)
+    avg = (1+np.sum(asyncrs<= 0.))/(1+n_samples)
+    return avg, asyncrs
+
+def find_clustermasses(tstats, tcutoff=2, min_cluster_size=2):
+    """
+    Find clustermasses with minimum cluster size min_cluster_size
+    https://benediktehinger.de/blog/science/statistics-cluster-permutation-test/
+    https://www.sciencedirect.com/science/article/pii/S0165027007001707#fig1
+    Args:
+        tstats: list of tstatistics
+        tcutoff: cutoff for significance. 
+        min_cluster_size: minimum cluster size. 
+    Returns:
+        clusterMasses: list of cluster masses
+        clusterLocations: list of tuples (start,end) corresponding to the clusters 
+    """
+    larger = abs(tstats) > tcutoff
+    # smaller = tstats > tcutoff
+    clusterMass = 0
+    clusterMasses,clusterLocations = [],[]
+    i=0
+    while i < len(tstats)-min_cluster_size:
+        size = min_cluster_size
+        if np.all(larger[i:i+size]):
+            while np.all(larger[i:i+size]) & (i+size<=len(tstats)):
+                size+=1
+            clusterBegin = i
+            clusterEnd = i+size-1
+            clusterMass = np.sum(tstats[i:i+size])
+            clusterLocations.append((clusterBegin,clusterEnd))
+            clusterMasses.append(clusterMass)
+            i = i+size
+        else:
+            i+=1
+    return clusterMasses, clusterLocations
+
+def permute_clustermasses(dyad_dat, solo_dat, min_cluster_size, n_permute=1000, condition = 'intensity'):
+    '''
+    Permute clustermass
+    Find clustermasses with minimum cluster size min_cluster_size
+    https://benediktehinger.de/blog/science/statistics-cluster-permutation-test/
+    https://www.sciencedirect.com/science/article/pii/S0165027007001707#fig1
+    
+    Args:
+        data x
+        data y 
+        min_cluster_size: number of consecutive significance to be considered as cluster
+        n_permute: number of permutations
+        cond: 'intensity' or 'synchrony', if synchrony will calculate 30 second rolling window 
+            correlation for each group after the shuffle. 
+        
+    Returns:
+        permuted_masses 
+        top : top 97.5% percentile
+        low : bottom 97.5% percentile
+    '''
+    # permute between groups
+    permuted_masses = []
+    np.random.seed(1)
+    for i in range(n_permute):
+        combined_df = pd.concat([dyad_dat,solo_dat],axis=1)
+        shuffled_idx = np.random.permutation(range(combined_df.shape[1]))
+        new_solo = combined_df.iloc[:,shuffled_idx].iloc[:,:solo_dat.shape[1]]
+        new_dyad = combined_df.iloc[:,shuffled_idx].iloc[:,solo_dat.shape[1]:]
+        if condition=='synchrony':
+            rs_pair, rs_solo = [],[]
+            window_size = 30
+            all_triangle_dyad = new_dyad.rolling(window=window_size,center=True).corr()
+            all_triangle_solo = new_solo.rolling(window=window_size,center=True).corr()
+            for ix in np.arange(0,solo_dat.shape[0]):
+                rs_pair.append(parse_triangle(all_triangle_dyad.loc[ix], 'pairs'))
+                rs_solo.append(parse_triangle(all_triangle_solo.loc[ix]))
+            new_dyad,new_solo = pd.DataFrame(rs_pair), pd.DataFrame(rs_solo)
+        # recalc t
+        t, p = stats.ttest_ind(new_dyad.T.values, new_solo.T.values, equal_var =False, nan_policy='omit')
+        masses,_ = find_clustermasses(t, min_cluster_size=min_cluster_size)
+        permuted_masses.extend(masses)
+    # compute two-tailed 5% cutoffs 
+    top = np.percentile(permuted_masses,q=97.5)
+    low = np.percentile(permuted_masses,q=2.5)
+    return permuted_masses, top, low
+
+def tstat_threshold(tstats, tcutoff, mode='greater'):
+    '''
+    Give a cutoff and will give you values that are greater or lower than the cutoff.
+    Inputs:
+        tstats
+        tcutoff
+        mode: 'greater' or 'lower'
+    '''
+    if mode=='greater': 
+        bol = tstats>tcutoff
+    elif mode=='lower':
+        bol = tstats<tcutoff
+    newbol = bol.copy()
+    for i, _bol in enumerate(bol[1:]):
+        if bol[i-1]==True:
+            newbol[i] = True
+    return newbol

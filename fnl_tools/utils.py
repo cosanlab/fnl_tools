@@ -14,7 +14,9 @@ __all__ = ['get_rect_coord',
            'parse_triangle',
            'load_dyad_df',
            'sort_srm',
-           'align_srms'
+           'align_srms',
+           'grab_pairwise_dist', 
+           'grab_subIDs'
            ]
 __author__ = ["Luke Chang", "Jin Hyun Cheong"]
 __license__ = "MIT"
@@ -255,3 +257,57 @@ def align_srms(srm1, srm2):
     srm2.s_ = srm2.s_[col_ind]
     srm2.w_ = [s[:,col_ind] for s in srm2.w_]
     return srm2, s2_sorted, col_ind, max_corr
+
+def grab_pairwise_dist(beh_dat, sublist, epn,dim = None,char=None,metric = 'euclidean',output='corr'):
+    '''
+    This function returns the pairwise distance using pdist of all subjects 
+    
+    output : 'corr':returns correlation values;
+            'value': returns the values
+    '''
+    i = int(epn[-1])
+    X = beh_dat[(beh_dat['episode']==i)].pivot_table(
+        index='subject_id',
+        columns=['dimension','character'],
+        values='rating').loc[sublist]
+    if dim:
+        if char:
+            if output=='corr':
+                return pd.DataFrame(squareform(pdist(X[dim].swaplevel('dimension',
+                                    'character',
+                                    axis=1)[char],metric)))
+            else:
+                return X[dim].swaplevel('dimension','character',axis=1)[char]
+        else:
+            if output=='corr':
+                return pd.DataFrame(squareform(pdist(X[dim], metric)))
+            else:
+                return X[dim]
+    elif dim==None:
+        if char:
+            if output=='corr':
+                return pd.DataFrame(squareform(pdist(X.swaplevel('dimension',
+                                    'character',
+                                    axis=1)[char],metric)))
+            else:
+                return X.swaplevel('dimension','character',axis=1)[char]
+        else:
+            if output=='corr':
+                return pd.DataFrame(squareform(pdist(X, metric)))
+            else:
+                return X
+            
+# create a dataframe so you can make that figure with factorplot. also run lmer model. 
+def grab_subIDs(df, k=0):
+    """Extracts subject Ids from row indices and column names.
+    
+    Args:
+        df: 
+    """
+    df_row = df.apply(lambda x: x.index)
+    df_col = df_row.T
+    df_row = np.hstack(df_row.mask(np.tril(np.ones(df_row.shape),k=k).astype(np.bool)).values.tolist())
+    df_row = df_row[df_row!='nan']
+    df_col = np.hstack(df_col.mask(np.tril(np.ones(df_col.shape),k=k).astype(np.bool)).values.tolist())
+    df_col = df_col[df_col!='nan']
+    return df_row, df_col

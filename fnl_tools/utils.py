@@ -12,7 +12,7 @@ __all__ = ['get_rect_coord',
            'clean',
            'expand_states',
            'parse_triangle',
-           'load_dyad_df'
+           'load_dyad_df',
            'sort_srm',
            'align_srms'
            ]
@@ -22,7 +22,10 @@ __license__ = "MIT"
 
 import numpy as np
 import pandas as pd
+from sklearn.preprocessing import binarize 
+from sklearn.metrics import pairwise_distances
 import scipy
+from scipy.stats import pearsonr
 from nltools.data import Adjacency
 
 def get_rect_coord(labels):
@@ -32,19 +35,20 @@ def get_rect_coord(labels):
     '''
     labels = np.array(labels)
     count_on = 0
-    start = []; duration = [];
-    for i,x in enumerate(labels):
-        if x:
-            if count_on==0:
-                start.append(i)
-            count_on = count_on + 1
-        if ~x:
-            if count_on > 0:
-                duration.append(count_on)
-            count_on = 0
-        if i==len(labels)-1:
-            if count_on > 0:
-                duration.append(count_on)
+    start = []; duration = []
+    for state in set(labels):
+        for i,x in enumerate(labels):
+            if x == state:
+                if count_on==0:
+                    start.append(i)
+                count_on = count_on + 1
+            elif x != state:
+                if count_on > 0:
+                    duration.append(count_on)
+                count_on = 0
+            if i == len(labels)-1:
+                if count_on > 0:
+                    duration.append(count_on)
     return dict(zip(start,duration))
 
 def rec_to_time(values, TR=2., fps=None):

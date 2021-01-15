@@ -9,9 +9,10 @@ from matplotlib.collections import LineCollection
 from fnl_tools.utils import rec_to_time, get_rect_coord
 from sklearn.preprocessing import MinMaxScaler
 from copy import deepcopy
+import pywt
 
 def plot_recurrence(data, labels=None, file_name=None,
-                    color = None,
+                    color = None, line_width=3,
                     title=None, tr=2., cmap=None, vmin=-1, vmax=1):
     '''
     This function plots a recurrence plot.
@@ -30,7 +31,7 @@ def plot_recurrence(data, labels=None, file_name=None,
                 raise ValueError('Make sure list of colors matches length of unique states')
         for i,s in enumerate(states):
             for start,duration in get_rect_coord(labels==s).items():
-                rect = patches.Rectangle((start,start), duration, duration, linewidth=2, edgecolor=color[i], facecolor='none')
+                rect = patches.Rectangle((start,start), duration, duration, linewidth=line_width, edgecolor=color[i], facecolor='none')
                 ax.add_patch(rect)
 
     ax.set_xticks(range(0,data.shape[0],50))
@@ -88,14 +89,14 @@ def plot_raster(data, groupby=None, line_width=3, color='skyblue', file_name=Non
         plt.savefig(file_name)
     return (fig, axes)
 
-def plot_wavelet(data, n_bins=50, n_decimal=4, title=None, file_name=None):
+def plot_wavelet(data, tr=2.0, n_bins=50, n_decimals=4, title=None, file_name=None):
     '''
     Plot a heatmap of a wavelet decomposition
 
     Args:
         data: data by time pandas object.
         n_bins: number of frequency bins
-        n_decimal: number of decimal places to round
+        n_decimals: number of decimal places to round
         title: Title for plot
         file_name: name of filename to save plot
         legend: (bool) include legend
@@ -106,16 +107,16 @@ def plot_wavelet(data, n_bins=50, n_decimal=4, title=None, file_name=None):
 
     '''
     data = data.copy()
-    plt.figure(figsize=(15,10))
-    cA, cD = pywt.cwt(data,np.arange(1,n_bins),'morl')
-    sns.heatmap(cA**2,yticklabels=False,xticklabels=False)
+    plt.figure(figsize=(15, 10))
+    cA, cD = pywt.cwt(data,np.arange(1, n_bins), 'morl')
+    sns.heatmap(cA**2,yticklabels=False, xticklabels=False)
     ax = plt.gca()
-    ax.set_yticks(range(0,len(cD),5))
-    ax.set_yticklabels(np.round(cD[range(0,len(cD),5)],decimals=n_decimals),fontsize=14)
+    ax.set_yticks(range(0, len(cD), 5))
+    ax.set_yticklabels(np.round(cD[range(0, len(cD), 5)], decimals=n_decimals), fontsize=14)
     plt.ylabel('Frequency (Hz)',fontsize=16)
     ax.set_xticks(range(0,len(data),50))
-    ax.set_xticklabels(rec_to_time(range(0,len(data),50),TR=tr),rotation=60,fontsize=14)
-    plt.xlabel('Time',fontsize=16)
+    ax.set_xticklabels(rec_to_time(range(0, len(data), 50), TR=tr), rotation=60, fontsize=14)
+    plt.xlabel('Time', fontsize=16)
     if title is not None:
         plt.title(title, fontsize=18)
     plt.tight_layout()
@@ -149,7 +150,7 @@ def plot_avg_state_timeseries(data, groupby=None, line_width=3, overlay=True,
         data.drop(groupby, axis=1, inplace=True)
         if ax is not None:
             if not overlay:
-                raise NotImplemented('Setting non overlay plots to a specific axis is not implemented yet.')
+                raise NotImplementedError('Setting non overlay plots to a specific axis is not implemented yet.')
             for i,x in enumerate(groups):
                 data.loc[group_idx==x,:].mean().plot(kind='line',ax=ax, color=color[i], linewidth=line_width)
                 ax.set_xticks(range(data.columns.min(),data.columns.max(),50))
@@ -213,58 +214,67 @@ def _create_simulation_pdf(data):
         p[np.round(i, decimals=2)] = np.mean(data['Prediction']>i)
     return p
 
-def plot_concordance(data, sim_data=None, fontsize=18, p_threshold=0.05, tr=2.0,
-                     opacity=True, legend=True):
+def plot_concordance(concordance, tr=2, figsize=(20,5), fontsize=18, n_ticks=50, ylabel='Concordance', xlabel='Time (TRs)'):
+    f, a = plt.subplots(1, figsize=figsize)
+    concordance.plot(ax=a)
+    a.set_xticks(range(concordance.index.min(),concordance.index.max(), n_ticks))
+    a.set_xticklabels(rec_to_time(range(concordance.index.min(),concordance.index.max(), n_ticks), TR=tr), rotation=60, fontsize=fontsize)
+    a.set_xlabel(xlabel, fontsize=fontsize)
+    a.set_ylabel(ylabel, fontsize=fontsize)
+    return
 
-    samples = [i for i in data.columns if isinstance(i, (float,int))]
-    colors = sns.color_palette("hls", len(data['Cluster'].unique()))
-    fig, axs = plt.subplots(1, sharex=True, sharey=True, figsize=(15,3))
+# def plot_concordance(data, sim_data=None, fontsize=18, p_threshold=0.05, tr=2.0,
+#                      opacity=True, legend=True):
 
-    if sim_data is not None:
-        p = _create_simulation_pdf(sim_data)
-        pp = pd.Series(p)
-        ci = pp.keys()[pp.values < p_threshold][0]
+#     samples = [i for i in data.columns if isinstance(i, (float,int))]
+#     colors = sns.color_palette("hls", len(data['Cluster'].unique()))
+#     fig, axs = plt.subplots(1, sharex=True, sharey=True, figsize=(15,3))
 
-        for cluster in sorted(data['Cluster'].unique()):
-            y = data.loc[data.loc[:,"Cluster"]==cluster,:].drop('Cluster', axis=1).mean()
-            x = y.index
-            y = y.values
+#     if sim_data is not None:
+#         p = _create_simulation_pdf(sim_data)
+#         pp = pd.Series(p)
+#         ci = pp.keys()[pp.values < p_threshold][0]
 
-            z = np.array([(p[np.round(i,decimals=2)]) for i in list(y)])
-            z = 1-(z-pp.min())/(pp.max()-pp.min())
-            color_list = _create_opacity(colors[cluster], z, opacity=opacity)
+#         for cluster in sorted(data['Cluster'].unique()):
+#             y = data.loc[data.loc[:,"Cluster"]==cluster,:].drop('Cluster', axis=1).mean()
+#             x = y.index
+#             y = y.values
 
-            points = np.array([x, y]).T.reshape(-1, 1, 2)
-            segments = np.concatenate([points[:-1], points[1:]], axis=1)
+#             z = np.array([(p[np.round(i,decimals=2)]) for i in list(y)])
+#             z = 1-(z-pp.min())/(pp.max()-pp.min())
+#             color_list = _create_opacity(colors[cluster], z, opacity=opacity)
 
-            lc = LineCollection(segments, colors=color_list, cmap=None)
-            lc.set_linewidth(2)
-            axs.add_collection(lc)
+#             points = np.array([x, y]).T.reshape(-1, 1, 2)
+#             segments = np.concatenate([points[:-1], points[1:]], axis=1)
 
-        plt.axhline(ci, linestyle='--', alpha=.5, color='grey')
-    else:
-        for cluster in sorted(data['Cluster'].unique()):
-            y = data.loc[data.loc[:,"Cluster"]==cluster,:].drop('Cluster', axis=1).mean()
-            x = y.index
-            y = y.values
-            color_list = _create_opacity(colors[cluster], y, opacity=opacity)
+#             lc = LineCollection(segments, colors=color_list, cmap=None)
+#             lc.set_linewidth(2)
+#             axs.add_collection(lc)
 
-            points = np.array([x, y]).T.reshape(-1, 1, 2)
-            segments = np.concatenate([points[:-1], points[1:]], axis=1)
+#         plt.axhline(ci, linestyle='--', alpha=.5, color='grey')
+#     else:
+#         for cluster in sorted(data['Cluster'].unique()):
+#             y = data.loc[data.loc[:,"Cluster"]==cluster,:].drop('Cluster', axis=1).mean()
+#             x = y.index
+#             y = y.values
+#             color_list = _create_opacity(colors[cluster], y, opacity=opacity)
 
-            lc = LineCollection(segments, colors=color_list, cmap=None)
-            lc.set_linewidth(2)
-            axs.add_collection(lc)
-    if legend:
-        axs.legend(sorted(data['Cluster'].unique()),fontsize=fontsize, loc='center left', bbox_to_anchor=(1, 0.5))
+#             points = np.array([x, y]).T.reshape(-1, 1, 2)
+#             segments = np.concatenate([points[:-1], points[1:]], axis=1)
 
-    axs.set_xlim(x.min(), x.max())
-    axs.set_ylim([0, 1])
-    axs.set_xticks(range(min(samples),max(samples),50))
-    axs.set_xticklabels(rec_to_time(range(min(samples),max(samples),50),TR=tr),rotation=60,fontsize=fontsize)
-    axs.set_ylabel('Concordance', fontsize=fontsize)
-    plt.tight_layout()
-    return (fig, axs)
+#             lc = LineCollection(segments, colors=color_list, cmap=None)
+#             lc.set_linewidth(2)
+#             axs.add_collection(lc)
+#     if legend:
+#         axs.legend(sorted(data['Cluster'].unique()),fontsize=fontsize, loc='center left', bbox_to_anchor=(1, 0.5))
+
+#     axs.set_xlim(x.min(), x.max())
+#     axs.set_ylim([0, 1])
+#     axs.set_xticks(range(min(samples),max(samples),50))
+#     axs.set_xticklabels(rec_to_time(range(min(samples),max(samples),50),TR=tr),rotation=60,fontsize=fontsize)
+#     axs.set_ylabel('Concordance', fontsize=fontsize)
+#     plt.tight_layout()
+#     return (fig, axs)
 
 def plot_weighted_concordance(data, weighting_dict=None, fontsize=18, tr=2.0,
                                 normalize=True, legend=True):
@@ -299,3 +309,33 @@ def plot_weighted_concordance(data, weighting_dict=None, fontsize=18, tr=2.0,
     axs.set_ylabel('Concordance', fontsize=fontsize)
     plt.tight_layout()
     return (fig, axs)
+
+def plot_cluster_similarity(data, labels=None, color = None, line_width=3,
+                            title=None, cmap='RdBu_r', vmin=-1, vmax=1,
+                           figsize=(10,10)):
+    '''
+    This function plots a cluster similarity plot.
+    Can optionally color the states with a vector of unique labels.
+    '''
+
+    plt.figure(figsize=figsize)
+    plt.imshow(data, cmap=cmap, vmin=vmin, vmax=vmax)
+    ax = plt.gca()
+
+    if labels is not None:
+        states = list(set(labels))
+        if color is None:
+            color = sns.color_palette("husl", len(states))
+        else:
+            if len(color) != len(states):
+                raise ValueError('Make sure list of colors matches length of unique states')
+        for i,start in enumerate(get_rect_coord(labels)):
+            duration = get_rect_coord(labels)[start]
+            rect = patches.Rectangle((start - 0.4, start - 0.4), duration-0.2, duration-0.2, linewidth=line_width, edgecolor=color[i], facecolor='none')
+            ax.add_patch(rect)
+    plt.axis('off')
+    return
+
+def frequency_color_func(word, hue=205, saturation_scaling=1.2, lightness_scaling=1.2, **kwargs):
+    '''color helper function for word cloud plots'''
+    return f"hsl({hue}, {saturation_scaling*word_dict[word]}%, {lightness_scaling*(100-word_dict[word])}%)"

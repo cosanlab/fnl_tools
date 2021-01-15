@@ -114,7 +114,7 @@ def parse_triangle(df, condition='upper'):
         assert(type(df)==np.ndarray)
     except:
         if type(df)==pd.DataFrame:
-            df = df.as_matrix()
+            df = df.values
         else:
             raise TypeError('Must be np.ndarray or pd.DataFrame')
     if condition =='upper':

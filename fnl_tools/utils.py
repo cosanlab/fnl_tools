@@ -30,6 +30,8 @@ import scipy
 from scipy.stats import pearsonr
 from nltools.data import Adjacency
 from scipy.spatial.distance import pdist, squareform
+import scipy.signal as signal
+from scipy.signal import butter, filtfilt, freqz
 
 def get_rect_coord(labels):
     '''
@@ -312,3 +314,39 @@ def grab_subIDs(df, k=0):
     df_col = np.hstack(df_col.mask(np.tril(np.ones(df_col.shape),k=k).astype(np.bool)).values.tolist())
     df_col = df_col[df_col!='nan']
     return df_row, df_col
+
+def butter_bandpass(lowcut, highcut, fs, order=5):
+    """Create a Butterworth bandpass filter
+
+    https://scipy-cookbook.readthedocs.io/items/ButterworthBandpass.html
+    https://stackoverflow.com/questions/25191620/creating-lowpass-filter-in-scipy-understanding-methods-and-units
+
+    Args:
+        lowcut (float): Low end frequency
+        highcut (float): High end frequency
+        fs (float): Frequency
+        order (int, optional): Order of Butterworth. Defaults to 5.
+
+    Returns:
+        b, a
+    """    
+    nyq = 0.5 * fs
+    low = lowcut / nyq
+    high = highcut / nyq
+    b, a = butter(order, [low, high], btype='band')
+    return b, a
+
+def butter_bandpass_filter(data, lowcut, highcut, fs, order=5):
+    """Apply function for Butterworth Bandpass filter
+
+    Args:
+        data ([type]): [description]
+        lowcut ([type]): [description]
+        highcut ([type]): [description]
+        fs ([type]): [description]
+        order (int, optional): [description]. Defaults to 5.
+    """    
+    b, a = butter_bandpass(lowcut, highcut, fs, order=order)
+    y = data.apply(lambda x: filtfilt(b,a, x))
+#     y = filtfilt(b, a, data)
+    return y

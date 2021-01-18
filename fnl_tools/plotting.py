@@ -339,3 +339,37 @@ def plot_cluster_similarity(data, labels=None, color = None, line_width=3,
 def frequency_color_func(word, hue=205, saturation_scaling=1.2, lightness_scaling=1.2, **kwargs):
     '''color helper function for word cloud plots'''
     return f"hsl({hue}, {saturation_scaling*word_dict[word]}%, {lightness_scaling*(100-word_dict[word])}%)"
+
+def plot_sync_relations(xname, yname, xlabel, ylabel, data, method='pearson'):
+    """Takes name of two column names to plot on dyad data.
+
+    Args:
+        xname (str): column name
+        yname (str): column name
+        xlabel (str): xlabel for plot
+        ylabel (str): ylabel for plot
+        data (dataframe): Dataframe with dyad data. Must have 'Episode' column.
+        method (str, optional): Correlation method to use. Defaults to 'pearson'.
+
+    Returns:
+        axes: plot axes.
+    """    
+    epns=['ep01','ep02','ep03','ep04']
+    f, axes = plt.subplots(1,4, figsize=(16,4), sharex=True, sharey=True)
+    for epi, epn in enumerate(epns):
+        sns.regplot(x=xname, y=yname, data=data.query('Episode==@epn'), 
+                    ax=axes[epi], ci=None, color='k', line_kws={'alpha':.3})
+        _dat = data.query('Episode==@epn').dropna()
+        if method=='spearman':
+            r, p = stats.spearmanr(_dat[xname],_dat[yname])
+        elif method=='pearson':
+            r, p = stats.pearsonr(_dat[xname],_dat[yname])
+        elif method=='kendall':
+            r, p = stats.kendalltau(_dat[xname],_dat[yname])
+        else:
+            raise(ValueError)
+        r = np.round(r,2)
+        p = np.round(p,3)
+        axes[epi].set(title=f'r = {r}, p= {p}', xlabel=xlabel, ylabel=ylabel)
+    plt.suptitle(f"{method} correlation between {xname} and {yname}", y=1.04)
+    return axes

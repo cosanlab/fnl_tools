@@ -29,6 +29,7 @@ from sklearn.metrics import pairwise_distances
 import scipy
 from scipy.stats import pearsonr
 from nltools.data import Adjacency
+from scipy.spatial.distance import pdist, squareform
 
 def get_rect_coord(labels):
     '''
